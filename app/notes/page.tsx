@@ -99,8 +99,8 @@ function buildSections(v: Village): { summary: string; body: React.ReactNode }[]
       <>
         <p>
           {osm
-            ? `Real: the engine, the OpenStreetMap basemap, and the village layout on this site. Its ${v.households.length} houses are buildings mapped on OpenStreetMap and its ${v.paths.length} paths are mapped lanes and footpaths, fetched by our server from the public Overpass API.`
-            : "Real: the engine and the OpenStreetMap basemap. When the site runs in live mode, or when you press the button in the planner, the houses and paths come from OpenStreetMap buildings and walkable ways, fetched by our server from the public Overpass API."}
+            ? `Real: the engine, the OpenStreetMap basemap, and the village layout on this site. Its ${v.households.length} houses are buildings mapped on OpenStreetMap and its ${v.paths.length} paths are mapped lanes and footpaths, fetched by our server from OpenStreetMap (a public Overpass mirror or the OpenStreetMap main API, whichever answers first).`
+            : "Real: the engine and the OpenStreetMap basemap. When the site runs in live mode, or when you press the button in the planner, the houses and paths come from OpenStreetMap buildings and walkable ways, fetched by our server from a public Overpass mirror or the OpenStreetMap main API."}
         </p>
         <p>
           The live layout answers from the first source that works: a live OpenStreetMap read ({CONFIG.overpassUrls.length > 1 ? `${CONFIG.overpassUrls.length} public Overpass mirrors` : "one Overpass server"}
@@ -133,8 +133,9 @@ function buildSections(v: Village): { summary: string; body: React.ReactNode }[]
     summary: "Stack",
     body: (
       <p>
-        Next.js 15 (App Router) and TypeScript on Vercel. MapLibre GL JS over OpenStreetMap raster tiles. The Overpass API for
-        buildings and paths, called from the server, no key. Zod checks every request and the Overpass response. A hand-written
+        Next.js 15 (App Router) and TypeScript on Vercel. MapLibre GL JS over OpenStreetMap raster tiles. Public Overpass mirrors
+        and the OpenStreetMap main API for buildings and paths, called from the server, no key. Zod checks every request and the
+        Overpass response; the main API answer is checked field by field. A hand-written
         graph and Dijkstra in TypeScript, running in the browser. Lenis and Motion for the story scroll. Tailwind CSS v4 with
         shadcn-style components. Vitest for the engine, parser and schema tests.
       </p>
@@ -231,7 +232,7 @@ export default async function NotesPage() {
           </li>
           <li>
             Map data from OpenStreetMap contributors (© OpenStreetMap contributors, ODbL): the map tiles, and the buildings and paths
-            fetched through the Overpass API.
+            fetched through a public Overpass mirror or the OpenStreetMap main API.
           </li>
         </ul>
         </details>
