@@ -463,3 +463,22 @@ Marka rerun needed: raster files not uploaded yet.
 
 - Overpass from the proof runner, `POST <mirror>/api/interpreter` with the form body above: `maps.mail.ru` 504 (twice), `overpass-api.de` no response (network, twice), `overpass.private.coffee` and `overpass.kumi.systems` no answer within 30 s (twice each). These are the public mirrors' load or client filtering; not fixable from this repo. The OSM API race above is the workaround.
 - Stale copy on the live site: the crawl quoted "Puteal works toward UN SDG 6.1 ... The demo village and its well test values are sample data" and "Sample data, 50 µg/L limit". Neither string exists in the current source (the footer has read "Built for SDG 6.1; well test values are sample data, map data from OpenStreetMap contributors." since commit 3f6e2ff, and the local `.next` build contains the new text). If the next crawl still shows the old footer, the production alias is serving an older deployment: check that the latest Vercel deployment built and was promoted.
+
+## QA round 4 (live crawl of https://puteal.vercel.app)
+
+**Findings.** Five `data` findings (the readout "Sample data, 50 µg/L limit, pumps capped, 67 people over 500 m", the footer "Puteal works toward UN SDG 6.1 ... The demo village and its well test values are sample data" on `/`, `/play` and `/notes`, and the `/play` intro) and one `proof` finding (`overpass`: every Overpass mirror failed again, and the error ended in "only 0 buildings mapped").
+
+**Root cause of the proof finding.** The last words of the proof line matter: "only 0 buildings mapped" is the parser's refusal, which means the OpenStreetMap main API (added in round 3) did answer the runner. Its 900 m box around the sample centre (23.7815 N, 90.6395 E, rural Araihazar) holds no mapped buildings, so the answer was unusable and no snapshot was saved. The OSM API source works; the box was too small for a thinly mapped area.
+
+**Fix.**
+- `lib/config.ts`: `osmApiWiderHalfSizesM` `[1200, 2500]`.
+- `lib/adapter.real.ts`: `fetchOsmApiElements` now asks the 900 m box first and, while the answer holds fewer than 5 buildings, the 2.4 km and then the 5 km box (about 0.0016 square degrees at most, far under the API's 0.25 limit). A failed or refused (400, too many nodes) wider box stops the widening and the best answer so far is kept. The single-box request with its retry is `fetchOsmApiBox`. The parser still keeps the 700 buildings nearest the centre, so the solve size does not change.
+- `scripts/proof.ts`: the failure line says "no OpenStreetMap source returned a usable layout" (it said "answered", which was false when the OSM API answered with 0 buildings); the success line names both box sizes.
+- `app/notes/page.tsx`: the real/sample, stack and sources copy name both OpenStreetMap sources instead of only "the Overpass API".
+
+**What stays on purpose.** "Well test values are sample data" stays in every mode. If every source still returns fewer than 5 buildings, the calm line "Live OpenStreetMap was unavailable, so this is the sample village." stays.
+
+### QA: external findings (round 4)
+
+- Overpass from the proof runner, `POST <mirror>/api/interpreter`: `maps.mail.ru` 504 (twice), `overpass-api.de` network failure (twice), `overpass.private.coffee` and `overpass.kumi.systems` timed out (twice each). Same as round 3; public mirror load, not fixable here.
+- The live site still serves an older deployment. Three strings the crawl quoted are absent from the current source: the footer "Puteal works toward UN SDG 6.1 ... The demo village" (source: "Built for SDG 6.1; well test values are sample data, map data from OpenStreetMap contributors.", `app/layout.tsx`), the readout prefix "Sample data, 50 µg/L limit" (source: "50 µg/L limit, pumps capped, ...", `components/story-scroll.tsx`), and the `/notes` sources list shown as a plain list ending "via the Overpass API" (source: a collapsible list). This is the second round with the same evidence. The runner should check the Vercel dashboard: whether the latest production builds succeed and whether the `puteal.vercel.app` alias points at them, or at an older deployment or a different Vercel project. No code change in this repo can fix an alias that does not move.
