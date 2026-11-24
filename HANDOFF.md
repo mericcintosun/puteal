@@ -504,3 +504,19 @@ Marka rerun needed: raster files not uploaded yet.
 
 - Stale production alias: see part 1 above. No code change can move an alias. Check the Vercel project's deployments and domain assignment.
 - OpenStreetMap coverage: `GET https://api.openstreetmap.org/api/0.6/map.json?bbox=...` answered 200, but even the 5 km box around 23.7815 N, 90.6395 E holds only 16 mapped buildings. That is a gap in the map data, not a request bug. Two ways forward: map the area (a HOT Tasking Manager task), or move `SAMPLE_VILLAGE.origin` to a better mapped village. The second is a deliberate seed change, because the story's hamlet names and numbers move with it. The current `fixtures/osm-charpara.json` is that sparse answer; the adapter now skips it. A future `npm run proof` that finds a usable layout overwrites it.
+
+## QA round 6 (live crawl of https://puteal.vercel.app)
+
+**Findings.** Five `data` findings, the same strings as rounds 4 and 5: the readout "Sample data, 50 µg/L limit, pumps capped, 67 people over 500 m" on `/`; the footer "Puteal works toward UN SDG 6.1 ... The demo village and its well test values are sample data; the planner can load real buildings and paths from OpenStreetMap contributors." on `/`, `/play` and `/notes`; and the `/play` intro "...and print a route card for any house. It open...". One `proof` finding: `overpass` "no OpenStreetMap source returned a usable layout ... (upstream_timeout: maps.mail.ru POST: upstream_error, statu...".
+
+**Root cause of the data findings (external, unchanged): the production alias serves an old deployment.** None of those strings exist in the current source. The footer quote is not in `app/layout.tsx`, and the readout has no "Sample data," prefix in `lib/source-line.ts`. The `/play` screenshot shows the intro without the CSV sentence that `app/play/page.tsx:53` has, and the Village layout card still says "through the Overpass API". The code was not touched for these findings, because no code change moves a Vercel alias. Check the Vercel project `puteal` for failing production builds and for which deployment `puteal.vercel.app` points at.
+
+**Root cause of the proof finding.** The proof line put the Overpass timeout code first. The crawler's excerpt then cut it off before the part that mattered: the OSM main API answered, and the map around the sample wells is too thin (round 5). Fix in `scripts/proof.ts`: the line now splits the joined reasons. When one source answered with a sparse layout, the line leads with "OpenStreetMap answered, but the map is thin around the sample wells (...)" and lists the mirrors that did not answer after it. It still says "Not run in this build", which is true: no usable layout and no snapshot.
+
+**What stays on purpose.** The well test values are sample data in every mode, and the pages say so in one muted line. Removing that line would claim survey data Puteal does not have.
+
+### QA: external findings (round 6)
+
+- Stale production alias: same evidence as round 5 (strings absent from source, old "Overpass API" copy in the screenshot). Needs a human in the Vercel dashboard.
+- Overpass mirrors from the proof runner: `POST https://maps.mail.ru/osm/tools/overpass/api/interpreter` returned a non-2xx (`upstream_error`), and the race as a whole ended in `upstream_timeout`. That's public mirror load, not fixable here.
+- OpenStreetMap coverage around 23.7815 N, 90.6395 E stays too thin for a usable layout (round 5). The way forward is mapping the area or a deliberate move of `SAMPLE_VILLAGE.origin`.
