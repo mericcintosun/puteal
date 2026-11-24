@@ -26,5 +26,5 @@
 The number below is written by `npm run proof`, which runs `lib/engine.ts` at 10 µg/L with and without the proposed deep well. Chapter 5 on the running app prints the same difference for whichever layout the site is serving.
 
 <!-- PROOF:BEGIN demo-closing -->
-"One deep well by Char para brings 0 people back within 500 m of safe water." Computed by lib/engine.ts in npm run proof on 2026-11-24, on the live OpenStreetMap layout with sample wells. On the sample village Charpara, one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L).
+On the sample village Charpara, one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). The OpenStreetMap figure was not run in this build: no OSM layout available.
 <!-- PROOF:END demo-closing -->

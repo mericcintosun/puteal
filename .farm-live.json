@@ -1,0 +1,1 @@
+{ "requiredEnv": [], "optionalEnv": ["OVERPASS_URL", "OSM_API_URL"] }
