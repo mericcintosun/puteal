@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { RouteCard } from "@/components/route-card";
+import { SdgCard } from "@/components/sdg-card";
 import { EmptyState, ErrorState } from "@/components/states";
 import { VillageMap } from "@/components/village-map";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
@@ -147,8 +148,8 @@ export function Planner({
   const hamletName = (id: string) => village.hamlets.find((h) => h.id === id)?.name ?? "Unknown hamlet";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
-      <div className="space-y-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="min-w-0 space-y-2">
         <Card className="h-[62vh] min-h-96 overflow-hidden lg:h-[74vh]">
           {mapFailed ? (
             <div className="flex h-full flex-col">
@@ -184,7 +185,7 @@ export function Planner({
         <PlanLegend />
       </div>
 
-      <aside className="space-y-3">
+      <aside className="min-w-0 space-y-3">
         <Card>
           <CardHeader>
             <CardTitle>Rules</CardTitle>
@@ -214,15 +215,15 @@ export function Planner({
               </div>
             </div>
             <div className="flex gap-1.5 pt-1">
-              <Button className="flex-1" onClick={() => setDropMode((d) => !d)} aria-pressed={dropMode}>
+              <Button className="min-h-11 flex-1" onClick={() => setDropMode((d) => !d)} aria-pressed={dropMode}>
                 <Crosshair /> {dropMode ? "Click the map to drill" : "Drop a deep well"}
               </Button>
-              <Button variant="outline" size="icon" onClick={() => setAdded([])} disabled={!added.length} aria-label="Remove your deep wells">
+              <Button variant="outline" size="icon" className="size-11" onClick={() => setAdded([])} disabled={!added.length} aria-label="Remove your deep wells">
                 <RotateCcw />
               </Button>
             </div>
             <div className="space-y-1.5 border-t border-border pt-3">
-              <Button variant="ghost" size="sm" className="w-full" onClick={copyLink}>
+              <Button variant="ghost" size="sm" className="min-h-11 w-full" onClick={copyLink}>
                 {copy.kind === "copied" ? <Check /> : <Link2 />}
                 {copy.kind === "copied" ? "Link copied" : "Copy link to this plan"}
               </Button>
@@ -240,7 +241,7 @@ export function Planner({
               {showLinkHint && linkHint && (
                 <p className="text-xs text-warn">
                   {linkHint}{" "}
-                  <button type="button" className="underline underline-offset-2" onClick={() => setShowLinkHint(false)}>
+                  <button type="button" className="inline-flex min-h-11 items-center underline underline-offset-2" onClick={() => setShowLinkHint(false)}>
                     Dismiss
                   </button>
                 </p>
@@ -257,7 +258,19 @@ export function Planner({
             <p>
               {fmtPeople(k.people)} people in {k.households} households. {k.safeWells - added.length} of {baseWells.length} tested wells pass
               at {threshold} µg/L
-              {baseWells.length > 0 ? (imported ? ` (imported test values from ${imported.file})` : " (sample test values)") : ""}.
+              {baseWells.length > 0 ? (
+                imported ? (
+                  <span className="break-words" title={imported.file}>
+                    {" "}
+                    (imported test values from {imported.file})
+                  </span>
+                ) : (
+                  " (sample test values)"
+                )
+              ) : (
+                ""
+              )}
+              .
             </p>
             <p>
               <span className={k.farPeople > 0 ? "font-semibold text-bad" : "font-semibold text-ok"}>{fmtPeople(k.farPeople)} people</span> live
@@ -274,11 +287,22 @@ export function Planner({
                 <strong className="text-ok">{fmtPeople(k.farPeople)}</strong>.
               </p>
             )}
-            <p className="border-t border-border pt-2 text-xs text-muted-foreground">
+            <p className="break-words border-t border-border pt-2 text-xs text-muted-foreground">
               {sourceLine(mode, village, { importedWells: imported !== null })}
             </p>
           </CardContent>
         </Card>
+
+        <SdgCard
+          village={village}
+          mode={mode}
+          importedWells={imported !== null}
+          baseline={baseline}
+          solution={solution}
+          addedCount={added.length}
+          loading={osm.kind === "loading"}
+          onDropWell={() => setDropMode(true)}
+        />
 
         {sel && selA ? (
           <RouteCard
@@ -293,7 +317,10 @@ export function Planner({
           />
         ) : (
           <Card>
-            <CardContent className="p-4 text-sm text-muted-foreground">Click a house on the map to get its walking card.</CardContent>
+            <CardContent className="p-4 text-sm text-muted-foreground">
+              Click a house on the map and its route card opens here: the well to use, its test value, the distance along the path and
+              the minutes each way, ready to print.
+            </CardContent>
           </Card>
         )}
 
@@ -315,11 +342,11 @@ export function Planner({
                 onRetry={loadOsm}
               />
             ) : village.source === "sample" ? (
-              <Button variant="outline" className="w-full" onClick={loadOsm} disabled={osm.kind === "loading"}>
+              <Button variant="outline" className="min-h-11 w-full" onClick={loadOsm} disabled={osm.kind === "loading"}>
                 <MapIcon /> {osm.kind === "loading" ? "Asking Overpass for buildings" : "Load OSM buildings and paths"}
               </Button>
             ) : (
-              <Button variant="ghost" className="w-full" onClick={backToSample}>
+              <Button variant="ghost" className="min-h-11 w-full" onClick={backToSample}>
                 Back to the sample village
               </Button>
             )}
@@ -341,7 +368,11 @@ export function Planner({
         <Card>
           <CardHeader>
             <CardTitle>Wells</CardTitle>
-            {imported && <CardDescription>Imported test values from {imported.file}, not sample data.</CardDescription>}
+            {imported && (
+              <CardDescription className="break-words" title={imported.file}>
+                Imported test values from {imported.file}, not sample data.
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
             {wells.length === 0 ? (
@@ -361,7 +392,9 @@ export function Planner({
                 const load = solution.load[w.id] ?? 0;
                 return (
                   <li key={w.id} className="flex items-center justify-between gap-2 py-1.5">
-                    <span className="min-w-0 truncate">{w.name}</span>
+                    <span className="min-w-0 truncate" title={w.name}>
+                      {w.name}
+                    </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {st === "unsafe" ? (
                         <Badge variant="bad">kit {kitReading(w.arsenic)}</Badge>
@@ -392,7 +425,7 @@ function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; c
       size="sm"
       onClick={onClick}
       aria-pressed={on}
-      className={cn("w-full", on && "border-primary/70 text-foreground")}
+      className={cn("min-h-11 w-full whitespace-normal", on && "border-primary/70 text-foreground")}
     >
       {children}
     </Button>

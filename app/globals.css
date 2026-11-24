@@ -182,4 +182,10 @@ html.lenis body {
   .puteal-noprint {
     display: none !important;
   }
+  /* Two printable cards share the planner. The route card prints by default; the SDG 6.1
+     summary prints only when its own button set html[data-print="sdg"]. */
+  html:not([data-print="sdg"]) [data-print-id="sdg"],
+  html[data-print="sdg"] [data-print-id="route"] {
+    display: none !important;
+  }
 }
