@@ -15,6 +15,9 @@ const brandFiles = fs.existsSync(brandDir)
 
 const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_BRAND_FILES: brandFiles.join(",") },
+  // Ship the saved Overpass snapshot with every server function, if `npm run proof` wrote it,
+  // so the real adapter can read it when live Overpass is down.
+  outputFileTracingIncludes: { "/*": ["./fixtures/osm-charpara.json"] },
 };
 
 export default nextConfig;

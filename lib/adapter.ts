@@ -1,44 +1,21 @@
-// The data seam. Pages and API routes read the village and solve requests through
-// getAdapter(); Phase 2 fills realAdapter (live OSM with a static fallback, imported well
-// results) without touching any page.
+// The adapter selector. Pages and API routes call getAdapter(); this is the only module
+// that branches on ADAPTER_MODE (through getAdapterMode in lib/config.ts). Server only:
+// no "use client" file imports it.
 
-import { SAMPLE_VILLAGE } from "./data/seed";
-import { prepareVillage, solve, type Solution } from "./engine";
-import type { AdapterMode, SolveRequest, Village } from "./types";
+import { fakeAdapter } from "./adapter.fake";
+import { realAdapter } from "./adapter.real";
+import { getAdapterMode } from "./config";
+import type { PutealAdapter } from "./types";
 
-export interface PutealAdapter {
-  mode: AdapterMode;
-  getVillage(): Promise<Village>;
-  solve(req: SolveRequest): Promise<Solution>;
-}
+export type { PutealAdapter };
+export { fakeAdapter };
 
-/** Serves the sample village Charpara. Every number it produces is sample data. */
-export const fakeAdapter: PutealAdapter = {
-  mode: "fake",
-  async getVillage() {
-    return SAMPLE_VILLAGE;
-  },
-  async solve(req) {
-    const prep = prepareVillage(SAMPLE_VILLAGE);
-    return solve(prep, [...SAMPLE_VILLAGE.wells, ...req.extraWells], {
-      threshold: req.threshold,
-      capacitated: req.capacityOn,
-    });
-  },
-};
-
-/** Placeholder for real data sources. Not wired yet. */
-export const realAdapter: PutealAdapter = {
-  mode: "real",
-  async getVillage() {
-    throw new Error("real adapter lands in Phase 2");
-  },
-  async solve() {
-    throw new Error("real adapter lands in Phase 2");
-  },
-};
-
-/** Returns the real adapter only when ADAPTER_MODE is "real"; the sample adapter otherwise. */
-export function getAdapter(): PutealAdapter {
-  return process.env.ADAPTER_MODE === "real" ? realAdapter : fakeAdapter;
+/**
+ * Returns the real adapter when ADAPTER_MODE is "real", the sample adapter otherwise.
+ * `live: true` asks for the real adapter in any mode; only the planner's
+ * "Load OSM buildings and paths" button uses it, through GET /api/village?live=1.
+ */
+export function getAdapter(opts: { live?: boolean } = {}): PutealAdapter {
+  if (getAdapterMode() === "real" || opts.live) return realAdapter;
+  return fakeAdapter;
 }

@@ -2,6 +2,7 @@
 // village origin. Keep this file free of runtime code so any module can import it.
 
 import type { Solution } from "./engine";
+import type { ApiError } from "./errors";
 
 export interface Pt {
   x: number;
@@ -54,12 +55,19 @@ export interface Household {
   people: number;
 }
 
+/**
+ * Which tier of the real adapter produced the layout: a live Overpass call, the saved
+ * snapshot, or the sample village after both failed. Absent on the plain sample village.
+ */
+export type LayoutTier = "live" | "snapshot" | "fallback";
+
 export interface Village {
   id: string;
   name: string;
   place: string;
   origin: LatLon;
   source: "sample" | "osm";
+  layoutTier?: LayoutTier;
   hamlets: Hamlet[];
   wells: Well[];
   paths: FootPath[];
@@ -70,9 +78,7 @@ export interface Village {
 export type AdapterMode = "fake" | "real";
 
 /** The one response shape every API route returns. */
-export type ApiResponse<T> =
-  | { ok: true; data: T; mode: AdapterMode }
-  | { ok: false; error: { code: string; message: string } };
+export type ApiResponse<T> = { ok: true; data: T; mode: AdapterMode } | (ApiError & { ok: false });
 
 /** Body of POST /api/solve. */
 export interface SolveRequest {
@@ -82,6 +88,13 @@ export interface SolveRequest {
   capacityOn: boolean;
   /** Proposed wells added on top of the village's tested wells. */
   extraWells: Well[];
+}
+
+/** The data seam. Pages and API routes read the village and solve through one of these. */
+export interface PutealAdapter {
+  mode: AdapterMode;
+  getVillage(): Promise<Village>;
+  solve(req: SolveRequest): Promise<Solution>;
 }
 
 export type { Solution };

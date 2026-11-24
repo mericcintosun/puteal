@@ -19,7 +19,7 @@ export function meters(a: Pt, b: Pt): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-/* ---------- geo ---------- */
+/* Geo helpers */
 
 const M_PER_DEG = 111_320;
 
@@ -56,7 +56,7 @@ export function boundsOf(v: Village): Bounds {
   return b;
 }
 
-/* ---------- walking graph ---------- */
+/* Walking graph */
 
 export interface Edge {
   to: number;
@@ -218,7 +218,7 @@ function treeFor(prep: Prepared, node: number): Tree {
   return t;
 }
 
-/* ---------- assignment ---------- */
+/* Assignment */
 
 export type WellState = "safe" | "unsafe" | "proposed";
 
@@ -436,7 +436,7 @@ export function routeFor(prep: Prepared, wells: Well[], a: Assignment | undefine
   return pts;
 }
 
-/* ---------- formatting helpers ---------- */
+/* Formatting helpers */
 
 export function fmtPeople(n: number): string {
   return Math.round(n).toLocaleString("en-US");
