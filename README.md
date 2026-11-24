@@ -66,11 +66,11 @@ The real adapter answers from the first source that works: the server's own copy
 Last proof of the live path:
 
 <!-- PROOF:BEGIN overpass -->
-Not run in this build: no Overpass instance answered (upstream_timeout: overpass-api.de: upstream_error, status 406; overpass.private.coffee: upstream_timeout; overpass.kumi.systems: upstream_timeout).
+Not run in this build: no Overpass instance answered (upstream_timeout: maps.mail.ru POST: upstream_error, status 504; maps.mail.ru POST: upstream_error, status 504; overpass-api.de POST: upstream_error, network; overpass-api.de POST: upstream_error, network; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout).
 <!-- PROOF:END overpass -->
 
 <!-- PROOF:BEGIN engine -->
-Not run in this build: no OSM layout available.
+Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 24 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). The OpenStreetMap layout was not available in this build (no Overpass answer and no saved snapshot), so that figure was not computed.
 <!-- PROOF:END engine -->
 
 ## Quickstart
