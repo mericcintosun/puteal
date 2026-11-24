@@ -66,11 +66,11 @@ The real adapter answers from the first source that works: the server's own copy
 Last proof of the live path:
 
 <!-- PROOF:BEGIN overpass -->
-Not run in this build: no OpenStreetMap source answered, neither an Overpass instance nor the OSM API (upstream_timeout: maps.mail.ru POST: upstream_error, status 504; maps.mail.ru POST: upstream_error, status 504; overpass-api.de POST: upstream_error, network; overpass-api.de POST: upstream_error, network; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; only 0 buildings mapped).
+Run on 2026-11-24: OpenStreetMap (api.openstreetmap.org) answered in 714 ms with 16 buildings kept (nearest 700 at most) and 273 walkable ways around the sample village centre (Overpass box 1300 m; the OSM API box starts at 900 m and widens to 5000 m while it holds fewer than 5 buildings). Snapshot saved to fixtures/osm-charpara.json.
 <!-- PROOF:END overpass -->
 
 <!-- PROOF:BEGIN engine -->
-Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 19 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). The OpenStreetMap layout was not available in this build (no OpenStreetMap source answered and no saved snapshot), so that figure was not computed.
+Run on 2026-11-24 on the live OpenStreetMap layout (16 households, 67 people at 4.2 per home, sample wells): at 10 µg/L, 67 people live more than 500 m from their assigned safe well; with the proposed deep well by Char para, 67. That brings 0 people back within 500 m. Graph build plus two solves took 109 ms.
 <!-- PROOF:END engine -->
 
 ## Quickstart
