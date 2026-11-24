@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useLenis } from "lenis/react";
-import { motion, useScroll } from "motion/react";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { scrollToChapter } from "@/components/chapter-link";
 import { Button } from "@/components/ui/button";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
 import { PROPOSED_DEEP_WELL, THRESHOLDS, proposeDeepWell, type AdapterMode, type Pt, type Village, type Well } from "@/lib/data";
 import { fmtMeters, fmtPeople, prepareVillage, routeFor, solve } from "@/lib/engine";
+import { plannerSearch } from "@/lib/planner-url";
 import { sourceLine } from "@/lib/source-line";
 import { cn } from "@/lib/utils";
 
@@ -20,12 +22,43 @@ const CHAPTERS = [
 ] as const;
 
 /**
+ * Kit K3, signature 2: parallax depth on the first screen. The headline block and the
+ * scene slot sit in one column and move at different rates while the hero scrolls away
+ * (text up by a fifth of its height, the picture down inside its frame). Both start at
+ * their resting place, so the server HTML is in place with JavaScript off; under reduced
+ * motion no transform is applied at all.
+ */
+export function StoryHero({ text, figure, caption }: { text: ReactNode; figure: ReactNode; caption: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const textY = useTransform(scrollYProgress, [0, 1], ["0%", "-20%"]);
+  const figureY = useTransform(scrollYProgress, [0, 1], ["0%", "7%"]);
+
+  return (
+    <div ref={ref}>
+      <motion.div className="puteal-wipe-group" style={reduce ? undefined : { y: textY }}>
+        {text}
+      </motion.div>
+      <figure className="mt-9">
+        <div className="overflow-hidden rounded-md border border-border border-t-edge bg-card">
+          <motion.div className="origin-top scale-[1.08]" style={reduce ? undefined : { y: figureY }}>
+            {figure}
+          </motion.div>
+        </div>
+        <figcaption className="mt-2 text-sm text-muted-foreground">{caption}</figcaption>
+      </figure>
+    </div>
+  );
+}
+
+/**
  * The story-scroll: one live village plan stays pinned while five chapters scroll past.
  * Each chapter sets the engine state (threshold, capacity rule, proposed wells); the last
  * hands the plan to the reader. Kit K3 signature 1: Lenis root plus a chapter rail whose
- * fill is bound to page scroll. The village arrives as a prop from the server page, which
- * reads it through the adapter seam (lib/adapter.ts); the same code runs on the sample
- * village and on a live OpenStreetMap layout, solved in the browser either way.
+ * fill is bound to page scroll, and chapter jumps through lenis.scrollTo. The village
+ * arrives as a prop from the server page, which reads it through the adapter seam; the
+ * same code runs on the sample village and on a live OpenStreetMap layout.
  */
 export function StoryScroll({ village, mode }: { village: Village; mode: AdapterMode }) {
   const baseWells = village.wells;
@@ -34,7 +67,6 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
   const prep = useMemo(() => prepareVillage(village), [village]);
   const [active, setActive] = useState(0);
   const [mine, setMine] = useState<Well[]>([]);
-  const pinned = useRef<HTMLDivElement>(null);
   const lenis = useLenis();
   const { scrollYProgress } = useScroll();
 
@@ -82,15 +114,7 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
   }, []);
 
   function jump(i: number) {
-    const el = document.getElementById(`chapter-${CHAPTERS[i].id}`);
-    if (!el) return;
-    const offset = -((pinned.current?.offsetHeight ?? 0) + 56 + 8);
-    if (lenis) {
-      lenis.scrollTo(el, { offset });
-    } else {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY + offset, behavior: reduce ? "auto" : "smooth" });
-    }
+    scrollToChapter(lenis, CHAPTERS[i].id);
   }
 
   const unsafe50 = baseWells.filter((w) => w.arsenic > THRESHOLDS.bangladesh).length;
@@ -103,10 +127,12 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
   const busiest = baseWells.find((w) => w.id === kn.busiestWellId);
   const shifted = shiftedIndex >= 0 ? village.households[shiftedIndex] : undefined;
   const shiftedA = shiftedIndex >= 0 ? s.bd.assign[shiftedIndex] : undefined;
+  // The reader's plan travels to /play in the address: WHO limit, pumps capped, every deep well.
+  const playHref = `/play${plannerSearch({ threshold: THRESHOLDS.who, capacitated: true, added: [PROPOSED_DEEP_WELL, ...mine] })}`;
 
   return (
     <section aria-label="How Puteal plans one village" className="relative mt-14">
-      <div ref={pinned} className="sticky top-14 z-20 -mx-5 border-b border-border bg-background px-5 pb-3 pt-3">
+      <div id="story-pin" className="sticky top-14 z-20 -mx-5 border-b border-border bg-background px-5 pb-3 pt-3">
         <nav aria-label="Chapters" className="mb-2">
           <div className="relative h-0.5 w-full bg-border" aria-hidden="true">
             <motion.div className="absolute inset-0 origin-left bg-primary" style={{ scaleX: scrollYProgress }} />
@@ -128,7 +154,7 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
             ))}
           </ol>
         </nav>
-        <figure className="overflow-hidden rounded-md border border-border border-t-edge">
+        <figure aria-label="Live village plan" className="overflow-hidden rounded-md border border-border border-t-edge bg-card">
           <VillagePlan
             village={village}
             wells={view.wells}
@@ -146,7 +172,7 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
             <span className={view.solution.kpis.farPeople > 0 ? "text-bad" : "text-ok"}>
               {fmtPeople(view.solution.kpis.farPeople)} people over 500 m
             </span>
-            {last && " · tap the plan to drop a deep well"}
+            {last && ", tap the plan to drop a deep well"}
           </span>
           <PlanLegend className="hidden sm:flex" />
         </div>
@@ -186,8 +212,17 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
 
         <Chapter i={2} title="Share the load">
           <p>
-            Puteal caps every pump and moves the overflow. <strong>{kb.shifted} households</strong> walk on to their second-choice well;
-            the average walk becomes {fmtMeters(kb.avgWalk)} and no pump goes past its cap.
+            {kb.shifted > 0 ? (
+              <>
+                Puteal caps every pump and moves the overflow. <strong>{kb.shifted} households</strong> walk on past a full pump to
+                their next choice; the average walk becomes {fmtMeters(kb.avgWalk)} and no pump goes past its cap.
+              </>
+            ) : (
+              <>
+                Puteal caps every pump at the number of people it can serve. At 50 µg/L the safe pumps still have room, so
+                nobody has to walk past a full pump and the average walk stays at <strong>{fmtMeters(kb.avgWalk)}</strong>.
+              </>
+            )}
             {shifted && shiftedA && (
               <>
                 {" "}
@@ -218,6 +253,7 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
             Bangladesh still uses 50 µg/L. The World Health Organization guideline is 10. Move the line and{" "}
             <strong>{unsafe10 - unsafe50} more wells</strong> turn red, leaving {kw.safeWells} safe pumps for {fmtPeople(kw.people)}{" "}
             people.
+            {kw.shifted > 0 && ` With fewer pumps to share, ${kw.shifted} households now walk past a full one.`}
           </p>
           <p>
             People beyond a 500 m walk go from <strong>{fmtPeople(kb.farPeople)}</strong> to <strong>{fmtPeople(kw.farPeople)}</strong>.
@@ -244,14 +280,14 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
             )}
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button variant="outline" size="sm" className="min-h-11" disabled={!mine.length} onClick={() => setMine((m) => m.slice(0, -1))}>
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href={playHref}>Take this plan to the planner</Link>
+            </Button>
+            <Button variant="ghost" className="min-h-11" disabled={!mine.length} onClick={() => setMine((m) => m.slice(0, -1))}>
               Undo last well
             </Button>
-            <Button variant="outline" size="sm" className="min-h-11" disabled={!mine.length} onClick={() => setMine([])}>
+            <Button variant="ghost" className="min-h-11" disabled={!mine.length} onClick={() => setMine([])}>
               Clear my wells
-            </Button>
-            <Button asChild variant="link" size="sm" className="min-h-11 whitespace-normal text-left">
-              <Link href="/play">Open the full planner, with real OSM buildings</Link>
             </Button>
           </div>
         </Chapter>
@@ -260,12 +296,14 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
   );
 }
 
-function Chapter({ i, title, children }: { i: number; title: string; children: React.ReactNode }) {
+function Chapter({ i, title, children }: { i: number; title: string; children: ReactNode }) {
   return (
-    <article id={`chapter-${CHAPTERS[i].id}`} data-index={i} className="flex min-h-[78vh] scroll-mt-[60vh] flex-col justify-start pt-10">
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-olive">{CHAPTERS[i].label}</p>
-      <h2 className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">{title}</h2>
-      <div className="mt-4 space-y-4 text-[1.0625rem] leading-relaxed text-foreground/90">{children}</div>
+    <article id={`chapter-${CHAPTERS[i].id}`} data-index={i} className="flex min-h-[60vh] scroll-mt-[56vh] flex-col justify-start pt-12">
+      <p className="text-sm font-medium text-muted-foreground">
+        Chapter {i + 1} of {CHAPTERS.length}
+      </p>
+      <h2 className="mt-1 text-[1.625rem] font-semibold leading-tight sm:text-chapter">{title}</h2>
+      <div className="mt-4 space-y-4 text-body text-foreground/90">{children}</div>
     </article>
   );
 }
