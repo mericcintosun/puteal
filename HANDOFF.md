@@ -426,3 +426,21 @@ Marka rerun needed: raster files not uploaded yet.
 
 - Overpass from the proof runner: `POST https://overpass-api.de/api/interpreter` (form body `data=<query>`, query in `lib/osm.ts buildOsmQuery`) returned a non-2xx or no response; the old proof only recorded the code `upstream_error`, not the status. The next proof run writes each host's status into README. If all three public instances refuse the runner, this is an upstream block: the site then shows the sample village with one muted line, and nothing claims live data.
 - Snapshot: `fixtures/osm-charpara.json` does not exist yet. The first successful `npm run proof` writes it; commit it, and the live site gets a real OpenStreetMap layout even when Overpass is down at request time.
+
+## QA round 2 (live crawl of https://puteal.vercel.app)
+
+**Findings.** Five `data` findings (the "Sample data" readout line and the footer's "sample data" sentence on `/`, `/play`, `/notes`) and two `proof` findings (`overpass`: overpass-api.de status 406, overpass.private.coffee and overpass.kumi.systems timed out; `engine`: no OSM layout). All seven share one cause: no Overpass instance answered the proof runner, so no snapshot was saved, so every page fell through to the sample village.
+
+**Fixes.**
+- `lib/adapter.real.ts`: `fetchOverpassElements` now asks every mirror at once (`Promise.any`) and aborts the rest when one answers. Before, the mirrors ran one after another, so two slow mirrors used up the whole budget. Per instance: a 403, 406 or 415 to the form POST is tried once more as `GET <url>?data=<query>` with only `Accept: */*` and `User-Agent`; a 429, a 5xx, a timeout or a network failure gets one retry after backoff; a parse failure is final. The POST now sends `Accept: */*`. Every failed attempt is still logged with `console.warn` and listed in the thrown error (host, POST or GET, status).
+- `lib/config.ts`: a fourth default mirror (`maps.mail.ru`); per try timeout 18 s (the 20 s budget is unchanged, and since the mirrors now run in parallel, each one gets nearly all of it). `.env.example` documents the new behaviour of `OVERPASS_URL`.
+- `scripts/proof.ts`: the engine line no longer says "Not run" when only the OSM layout is missing. It reports the sample village solve, which the engine really ran, and says the OpenStreetMap figure was not computed.
+- `app/notes/page.tsx`: the method sentence matches the new parallel policy.
+
+**What stays on purpose.** "Well test values are sample data" (readout and footer) is true in every mode and stays. When Overpass and the snapshot both fail, the source line stays as the calm "Live OpenStreetMap was unavailable, so this is the sample village."
+
+### QA: external findings (round 2)
+
+- `POST https://overpass-api.de/api/interpreter`, form body `data=[out:json][timeout:25];(way["building"](bbox);way["highway"~"^(...)$"](bbox););out geom;`, headers `Content-Type: application/x-www-form-urlencoded; charset=UTF-8`, `Accept: application/json, */*;q=0.5`, `User-Agent: Puteal/0.1 (+https://puteal.vercel.app; SDG 6.1 well planner)`: **406**. The Accept header already allowed `*/*`, so plain content negotiation is an unlikely cause. The 406 more likely comes from the instance's client filtering, which this repo cannot see. This round could not test from a shell. The GET fallback and the plainer Accept are a reasoned attempt, not a confirmed fix: the next proof line shows whether `overpass-api.de GET` answers.
+- `overpass.private.coffee` and `overpass.kumi.systems`: no answer within 30 s from the proof runner (load on public mirrors). Not fixable from here. The parallel race means one of them answering late in the budget is now enough.
+- If every mirror still refuses: commit a `fixtures/osm-charpara.json` produced by any machine where `npm run proof` succeeds (a laptop works). The live site then serves a real OpenStreetMap layout from the snapshot tier without any live call.
