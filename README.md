@@ -59,14 +59,14 @@ flowchart LR
 
 ## Live mode
 
-Set `ADAPTER_MODE=real` and the village layout comes from live OpenStreetMap: the server asks the public Overpass API for every building and walkable way in a 1.3 km square around the sample village, turns each building into a household of 4.2 people, and runs the same engine on it. The real adapter needs no key. The wells, their sample arsenic values and the six hamlet names stay sample data.
+By default (or with `ADAPTER_MODE=real`) the village layout comes from live OpenStreetMap: the server asks the public Overpass API for every building and walkable way in a 1.3 km square around the sample village, turns each building into a household of 4.2 people, and runs the same engine on it. The real adapter needs no key. The wells, their sample arsenic values and the six hamlet names stay sample data.
 
-The real adapter answers from the first source that works: the server's own copy if it is younger than 10 minutes, a live Overpass call (8 seconds per try, one retry), the snapshot `fixtures/osm-charpara.json`, then the sample village Charpara. With `ADAPTER_MODE=fake` (or unset) everything runs on the sample village.
+The real adapter answers from the first source that works: the server's own copy if it is younger than 10 minutes, a live Overpass call (three public instances tried in order, 8 seconds per try, a short backoff between tries, 20 seconds in all), the snapshot `fixtures/osm-charpara.json`, then the sample village Charpara, with one calm line under the plan saying so. With `ADAPTER_MODE=fake` everything runs on the sample village.
 
 Last proof of the live path:
 
 <!-- PROOF:BEGIN overpass -->
-Not run in this build: Overpass did not answer (upstream_error).
+Not run in this build: no Overpass instance answered (upstream_timeout: overpass-api.de: upstream_error, status 406; overpass.private.coffee: upstream_timeout; overpass.kumi.systems: upstream_timeout).
 <!-- PROOF:END overpass -->
 
 <!-- PROOF:BEGIN engine -->
@@ -82,7 +82,7 @@ npm test           # vitest: engine, OSM parser, schemas, planner URL, wells CSV
 npm run proof      # rewrites the proof lines in this file and DEMO.md
 ```
 
-No environment variables are required. `.env.example` lists the optional `ADAPTER_MODE` (default `fake`) and `OVERPASS_URL`.
+No environment variables are required. `.env.example` lists the optional `ADAPTER_MODE` (default `real`, set `fake` for the sample village only) and `OVERPASS_URL` (one URL or a comma-separated mirror list).
 
 Last proof of the planner round trip (the example wells CSV through the planner's parser and the engine):
 

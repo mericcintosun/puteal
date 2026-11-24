@@ -152,7 +152,7 @@ Demo flow to rehearse (90 s): open `/`, scroll chapter 1 (village, red and green
 - `lib/overpass.ts` (planner button): the smaller change was to stop calling Overpass from the browser. It now calls `GET /api/village?live=1`, so the client imports neither `CONFIG` nor `lib/osm.ts`, and no client file can reach `process.env`. The localStorage cache is gone; the server's module cache (10 minutes) replaces it. `getAdapter({ live: true })` returns the real adapter in any mode for that one query; `lib/adapter.ts` stays the only module that branches on the mode.
 - `Village` gained an optional `layoutTier` ("live", "snapshot", "fallback"). The real adapter sets it together with `source` and `place`. The source line (`lib/source-line.ts`) reads `mode`, `village.source` and `layoutTier`, never `place` text.
 - Cache: whatever tier answered is cached for `CONFIG.cacheTtlMs`, fallbacks included, so a down Overpass does not cost 16 seconds on every request.
-- Retry: `fetchOverpassElements` makes 1 + `CONFIG.overpassRetries` attempts (capped at 2 in code); a parse failure is not retried.
+- Retry: `fetchOverpassElements` tries each URL in `CONFIG.overpassUrls` once, in order, with `CONFIG.overpassBackoffMs` backoff between attempts (a single configured URL gets one retry), all within `CONFIG.overpassBudgetMs`; a parse failure stops the loop.
 - Pages stay statically rendered. In real mode, the layout is fetched when the page is prerendered at build time (live, else snapshot, else sample) and stays until the next deploy; `/api/village` is dynamic and answers per request. No `revalidate` was added; see Open questions.
 - The snapshot holds slimmed Overpass elements (only `building`, `highway`, `name` tags, 6-decimal coordinates) and is parsed with the same `overpassResponseSchema`.
 - `/api/village` validates its query (`live` must be "0" or "1") with `villageQuerySchema` before anything else; `/api/solve` uses `solveRequestSchema`. Failures are `{ ok: false, error, hint }` with status from `statusFor` in `lib/errors.ts`.
@@ -409,3 +409,20 @@ Marka rerun needed: raster files not uploaded yet.
 - Open the footer's hackathon link once and fix the URL in `app/layout.tsx` if Devpost uses a different address.
 
 **Next best step.** Judge rounds (Phases 6 and 7): walk the live site against the BEFORE shots defect by defect, then tune copy and the strip's track length on a real phone.
+
+## QA round 1 (live crawl of https://puteal.vercel.app)
+
+**Root cause of the five `data` findings.** The live deployment never set `ADAPTER_MODE`, and the selector treated "unset" as `fake`, so every page served the sample village and its "sample data" lines even though the real adapter was finished. The two `proof` findings share a cause: the real adapter asked only `overpass-api.de`, with a runtime default user agent, an 8 s timeout and one retry against the same host; the proof got `upstream_error` (a non-2xx status or a network failure from that one host) and so had no layout for the engine proof.
+
+**Fixes.**
+- `lib/config.ts`: `getAdapterMode()` now returns `real` unless `ADAPTER_MODE=fake`. `CONFIG.overpassUrls` holds three public instances (overpass-api.de, overpass.private.coffee, overpass.kumi.systems); `OVERPASS_URL` takes one URL or a comma-separated list. New `overpassBudgetMs` (20 s), `overpassBackoffMs`, `userAgent`, `fallbackCacheTtlMs` (60 s, so a sample fallback is retried soon instead of held for 10 minutes).
+- `lib/adapter.real.ts`: `fetchOverpassElements` walks the mirror list with backoff inside a total budget, sends an identifying `User-Agent`, logs each failed attempt with `console.warn` (host, code, status), and throws one error that lists every attempt.
+- `scripts/proof.ts`: gives Overpass 30 s per try and 80 s in all (under the 110 s guard) and writes the per-host statuses into the README line when every instance fails, so the line stays truthful.
+- `app/page.tsx`, `app/notes/page.tsx`: `revalidate = 3600`, so a build that could not reach Overpass does not pin the sample layout until the next deploy. `app/play/page.tsx`: village budget 8 s (streamed behind `loading.tsx`), and on timeout it keeps mode `real` so the source line reads "Live OpenStreetMap was unavailable, so this is the sample village." `app/api/*`: `maxDuration = 30`.
+
+**What stays on purpose.** Well test values are sample data in every mode (there is no public per-well arsenic dataset for this place), so "Well test values are sample data" remains under the plan and in the footer. That line is honest and is not a fallback notice.
+
+### QA: external findings
+
+- Overpass from the proof runner: `POST https://overpass-api.de/api/interpreter` (form body `data=<query>`, query in `lib/osm.ts buildOsmQuery`) returned a non-2xx or no response; the old proof only recorded the code `upstream_error`, not the status. The next proof run writes each host's status into README. If all three public instances refuse the runner, this is an upstream block: the site then shows the sample village with one muted line, and nothing claims live data.
+- Snapshot: `fixtures/osm-charpara.json` does not exist yet. The first successful `npm run proof` writes it; commit it, and the live site gets a real OpenStreetMap layout even when Overpass is down at request time.
