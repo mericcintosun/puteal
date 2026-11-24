@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RouteCard } from "@/components/route-card";
 import { VillageMap } from "@/components/village-map";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
-import { SAMPLE_VILLAGE, THRESHOLDS, proposeDeepWell, type Pt, type Village, type Well } from "@/lib/data";
+import { THRESHOLDS, proposeDeepWell, type Pt, type Village, type Well } from "@/lib/data";
 import { fmtMeters, fmtPeople, kitReading, prepareVillage, routeFor, solve } from "@/lib/engine";
 import { loadOsmVillage } from "@/lib/overpass";
 import { cn } from "@/lib/utils";
@@ -19,9 +19,12 @@ type OsmStatus =
   | { kind: "error"; message: string }
   | { kind: "ok"; buildings: number; ways: number; cached: boolean };
 
-/** The free-form planner: same engine as the story, no narrative, every control open. */
-export function Planner() {
-  const [village, setVillage] = useState<Village>(SAMPLE_VILLAGE);
+/**
+ * The free-form planner: same engine as the story, no narrative, every control open.
+ * The starting village comes from the server page through the adapter seam.
+ */
+export function Planner({ initialVillage }: { initialVillage: Village }) {
+  const [village, setVillage] = useState<Village>(initialVillage);
   const [threshold, setThreshold] = useState<number>(THRESHOLDS.bangladesh);
   const [capacitated, setCapacitated] = useState(true);
   const [dropMode, setDropMode] = useState(false);
@@ -50,7 +53,7 @@ export function Planner() {
   async function loadOsm() {
     setOsm({ kind: "loading" });
     try {
-      const r = await loadOsmVillage(SAMPLE_VILLAGE);
+      const r = await loadOsmVillage(initialVillage);
       setVillage(r.village);
       setSelected(null);
       setOsm({ kind: "ok", buildings: r.buildings, ways: r.ways, cached: r.fromCache });
@@ -60,9 +63,15 @@ export function Planner() {
   }
 
   function backToSample() {
-    setVillage(SAMPLE_VILLAGE);
+    setVillage(initialVillage);
     setSelected(null);
     setOsm({ kind: "idle" });
+  }
+
+  function resetAll() {
+    backToSample();
+    setAdded([]);
+    setDropMode(false);
   }
 
   const k = solution.kpis;
@@ -74,7 +83,7 @@ export function Planner() {
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
       <div className="space-y-2">
-        <Card className="h-[62vh] min-h-[420px] overflow-hidden lg:h-[74vh]">
+        <Card className="h-[62vh] min-h-96 overflow-hidden lg:h-[74vh]">
           {mapFailed ? (
             <div className="flex h-full flex-col">
               <p className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
@@ -156,7 +165,7 @@ export function Planner() {
           <CardContent className="space-y-2 text-sm leading-relaxed">
             <p>
               {fmtPeople(k.people)} people in {k.households} households. {k.safeWells - added.length} of {village.wells.length} tested wells pass
-              at {threshold} µg/L.
+              at {threshold} µg/L{village.wells.length > 0 ? " (sample test values)" : ""}.
             </p>
             <p>
               <span className={k.farPeople > 0 ? "font-semibold text-bad" : "font-semibold text-ok"}>{fmtPeople(k.farPeople)} people</span> live
@@ -189,7 +198,7 @@ export function Planner() {
           />
         ) : (
           <Card>
-            <CardContent className="p-4 text-sm text-muted-foreground">Click any household on the map to get its printable route card.</CardContent>
+            <CardContent className="p-4 text-sm text-muted-foreground">Click a house on the map to get its walking card.</CardContent>
           </Card>
         )}
 
@@ -226,6 +235,19 @@ export function Planner() {
             <CardTitle>Wells</CardTitle>
           </CardHeader>
           <CardContent>
+            {wells.length === 0 ? (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>No wells yet. Click the map to add one, or reset to the sample village.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setDropMode(true)}>
+                    <Crosshair /> Drop a deep well
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={resetAll}>
+                    <RotateCcw /> Reset to the sample village
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <ul className="divide-y divide-border text-sm">
               {wells.map((w) => {
                 const st = solution.state[w.id];
@@ -248,6 +270,7 @@ export function Planner() {
                 );
               })}
             </ul>
+            )}
           </CardContent>
         </Card>
       </aside>

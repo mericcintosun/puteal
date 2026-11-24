@@ -6,7 +6,7 @@ import { useLenis } from "lenis/react";
 import { motion, useScroll } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
-import { PROPOSED_DEEP_WELL, SAMPLE_VILLAGE, THRESHOLDS, proposeDeepWell, type Pt, type Well } from "@/lib/data";
+import { PROPOSED_DEEP_WELL, THRESHOLDS, proposeDeepWell, type Pt, type Village, type Well } from "@/lib/data";
 import { fmtMeters, fmtPeople, prepareVillage, routeFor, solve } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 
@@ -18,19 +18,18 @@ const CHAPTERS = [
   { id: "next-well", label: "The next well" },
 ] as const;
 
-const village = SAMPLE_VILLAGE;
-const baseWells = village.wells;
-const hamletName = (id: string | null) => village.hamlets.find((h) => h.id === id)?.name ?? "the far end";
-const wellName = (id: string | null, wells: Well[] = baseWells) => wells.find((w) => w.id === id)?.name ?? "a full pump";
-
 /**
  * The story-scroll: one live village plan stays pinned while five chapters scroll past.
  * Each chapter sets the engine state (threshold, capacity rule, proposed wells); the last
  * hands the plan to the reader. Kit K3 signature 1: Lenis root plus a chapter rail whose
- * fill is bound to page scroll.
+ * fill is bound to page scroll. The village arrives as a prop from the server page, which
+ * reads it through the adapter seam (lib/adapter.ts).
  */
-export function StoryScroll() {
-  const prep = useMemo(() => prepareVillage(village), []);
+export function StoryScroll({ village }: { village: Village }) {
+  const baseWells = village.wells;
+  const hamletName = (id: string | null) => village.hamlets.find((h) => h.id === id)?.name ?? "the far end";
+  const wellName = (id: string | null) => baseWells.find((w) => w.id === id)?.name ?? "a full pump";
+  const prep = useMemo(() => prepareVillage(village), [village]);
   const [active, setActive] = useState(0);
   const [mine, setMine] = useState<Well[]>([]);
   const pinned = useRef<HTMLDivElement>(null);
@@ -44,16 +43,16 @@ export function StoryScroll() {
       who: solve(prep, baseWells, { threshold: THRESHOLDS.who, capacitated: true }),
       proposed: solve(prep, [...baseWells, PROPOSED_DEEP_WELL], { threshold: THRESHOLDS.who, capacitated: true }),
     }),
-    [prep]
+    [prep, baseWells]
   );
-  const nextWells = useMemo(() => [...baseWells, PROPOSED_DEEP_WELL, ...mine], [mine]);
+  const nextWells = useMemo(() => [...baseWells, PROPOSED_DEEP_WELL, ...mine], [baseWells, mine]);
   const next = useMemo(() => solve(prep, nextWells, { threshold: THRESHOLDS.who, capacitated: true }), [prep, nextWells]);
 
   // One shifted household makes the capacity rule concrete in chapter three.
   const shiftedIndex = useMemo(() => s.bd.assign.findIndex((a) => a.choice > 0), [s.bd]);
   const shiftedRoute = useMemo(
     () => (shiftedIndex >= 0 ? routeFor(prep, baseWells, s.bd.assign[shiftedIndex], shiftedIndex) : undefined),
-    [prep, s.bd, shiftedIndex]
+    [prep, baseWells, s.bd, shiftedIndex]
   );
 
   const states = [
@@ -135,11 +134,12 @@ export function StoryScroll() {
             route={view.route}
             onPick={last ? (p) => setMine((m) => (m.length >= 5 ? m : [...m, proposeDeepWell(p, m.length)])) : undefined}
             label={`Plan of ${village.name}: ${village.households.length} households, ${view.wells.length} wells, chapter: ${CHAPTERS[active].label}`}
-            className="h-[34vh] sm:h-[38vh]"
+            className="h-[34vh] min-h-56 sm:h-[38vh]"
           />
         </figure>
         <div key={active} className="puteal-wipe mt-2 flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">
+            {village.source === "sample" ? "Sample data, " : ""}
             {view.solution.threshold} µg/L limit, {view.solution.capacitated ? "pumps capped" : "no pump cap"},{" "}
             <span className={view.solution.kpis.farPeople > 0 ? "text-bad" : "text-ok"}>
               {fmtPeople(view.solution.kpis.farPeople)} people over 500 m

@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SceneSlot } from "@/components/scene-slot";
-import { DETOUR, FAR_METERS, PEOPLE_PER_HOUSEHOLD, PROPOSED_DEEP_WELL, SAMPLE_VILLAGE, THRESHOLDS, WALK_M_PER_MIN } from "@/lib/data";
+import { getAdapter } from "@/lib/adapter";
+import { DETOUR, FAR_METERS, PEOPLE_PER_HOUSEHOLD, PROPOSED_DEEP_WELL, THRESHOLDS, WALK_M_PER_MIN, type Village } from "@/lib/data";
 import { buildGraph, fmtMeters, fmtPeople, prepareVillage, solve } from "@/lib/engine";
 
 export const metadata: Metadata = {
-  title: "Method notes · Puteal",
+  title: "Method and sources",
   description: "How Puteal builds the walking graph, assigns households to wells under a capacity cap, and what is real versus sample data.",
 };
 
-// These numbers are computed by the engine at build time, not typed in.
-const v = SAMPLE_VILLAGE;
-const prep = prepareVillage(v);
-const graph = buildGraph(v.paths);
-const edges = graph.adj.reduce((s, a) => s + a.length, 0) / 2;
-const at50 = solve(prep, v.wells, { threshold: THRESHOLDS.bangladesh, capacitated: true }).kpis;
-const at10 = solve(prep, v.wells, { threshold: THRESHOLDS.who, capacitated: true }).kpis;
-const withDeep = solve(prep, [...v.wells, PROPOSED_DEEP_WELL], { threshold: THRESHOLDS.who, capacitated: true }).kpis;
+// These numbers are computed by the engine from the adapter's village, not typed in.
+function buildSections(v: Village): { summary: string; body: React.ReactNode }[] {
+  const prep = prepareVillage(v);
+  const graph = buildGraph(v.paths);
+  const edges = graph.adj.reduce((s, a) => s + a.length, 0) / 2;
+  const at50 = solve(prep, v.wells, { threshold: THRESHOLDS.bangladesh, capacitated: true }).kpis;
+  const at10 = solve(prep, v.wells, { threshold: THRESHOLDS.who, capacitated: true }).kpis;
+  const withDeep = solve(prep, [...v.wells, PROPOSED_DEEP_WELL], { threshold: THRESHOLDS.who, capacitated: true }).kpis;
 
-const SECTIONS: { summary: string; body: React.ReactNode }[] = [
+  return [
   {
     summary: "Why well switching, and why it stalls",
     body: (
@@ -124,9 +125,12 @@ const SECTIONS: { summary: string; body: React.ReactNode }[] = [
       </p>
     ),
   },
-];
+  ];
+}
 
-export default function NotesPage() {
+export default async function NotesPage() {
+  const village = await getAdapter().getVillage();
+  const sections = buildSections(village);
   return (
     <article className="mx-auto max-w-prose px-5 pb-24 pt-12">
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Appendix</p>
@@ -146,7 +150,7 @@ export default function NotesPage() {
       </figure>
 
       <div className="mt-10 space-y-2">
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <details key={s.summary} className="group rounded-md border border-border border-t-edge bg-card">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-display font-semibold [&::-webkit-details-marker]:hidden">
               {s.summary}
