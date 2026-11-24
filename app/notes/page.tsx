@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SceneSlot } from "@/components/scene-slot";
-import { getAdapter } from "@/lib/adapter";
+import { fakeAdapter, getAdapter } from "@/lib/adapter";
 import { CONFIG } from "@/lib/config";
 import { DETOUR, FAR_METERS, PEOPLE_PER_HOUSEHOLD, PROPOSED_DEEP_WELL, THRESHOLDS, WALK_M_PER_MIN, type Village } from "@/lib/data";
 import { buildGraph, fmtMeters, fmtPeople, prepareVillage, solve } from "@/lib/engine";
@@ -139,9 +139,21 @@ function buildSections(v: Village): { summary: string; body: React.ReactNode }[]
   ];
 }
 
+/**
+ * Demo step 7. The notes must never throw: if the adapter fails, or the engine cannot
+ * compute the numbers for the village it returned, fall back to the sample village.
+ */
+async function loadSections(): Promise<ReturnType<typeof buildSections>> {
+  try {
+    const village = await getAdapter().getVillage();
+    return buildSections(village);
+  } catch {
+    return buildSections(await fakeAdapter.getVillage());
+  }
+}
+
 export default async function NotesPage() {
-  const village = await getAdapter().getVillage();
-  const sections = buildSections(village);
+  const sections = await loadSections();
   return (
     <article className="mx-auto max-w-prose px-5 pb-24 pt-12">
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Appendix</p>

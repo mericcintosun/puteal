@@ -2,17 +2,31 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SceneSlot } from "@/components/scene-slot";
 import { StoryScroll } from "@/components/story-scroll";
-import { getAdapter } from "@/lib/adapter";
+import { fakeAdapter, getAdapter } from "@/lib/adapter";
+import type { AdapterMode, Village } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: { absolute: "Puteal: safe wells for every household" },
 };
 
+/**
+ * Demo steps 1 to 5 read the village here. The real adapter already falls back from live
+ * Overpass to the snapshot to the sample village; if it throws anyway, this page falls
+ * back to the sample adapter so the story always renders.
+ */
+async function loadVillage(): Promise<{ village: Village; mode: AdapterMode }> {
+  const adapter = getAdapter();
+  try {
+    return { village: await adapter.getVillage(), mode: adapter.mode };
+  } catch {
+    return { village: await fakeAdapter.getVillage(), mode: "fake" };
+  }
+}
+
 // L3 editorial: one centered column at max-w-prose, magazine order. Kicker, display
 // headline, standfirst, inline figure, the live story with its CTA mid-article, a coda.
 export default async function Home() {
-  const adapter = getAdapter();
-  const village = await adapter.getVillage();
+  const { village, mode } = await loadVillage();
   return (
     <article className="mx-auto max-w-prose px-5 pb-24 pt-12">
       <p className="puteal-wipe text-xs font-medium uppercase tracking-[0.2em] text-primary">
@@ -51,7 +65,7 @@ export default async function Home() {
         capacity cap on every pump.
       </p>
 
-      <StoryScroll village={village} mode={adapter.mode} />
+      <StoryScroll village={village} mode={mode} />
 
       <section className="mt-16 border-t border-border pt-12">
         <h2 className="text-2xl font-semibold sm:text-3xl">A card for every door</h2>
