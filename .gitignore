@@ -8,6 +8,7 @@ out/
 next-env.d.ts
 .farm-scaffold.json
 .farm-*
+!.farm-live.json
 
 # farm: sır dosyaları (otomatik eklendi)
 *.pem
