@@ -28,9 +28,7 @@ There is no sponsor bounty track. One submission enters all three placements bel
 ## Before submitting
 
 - [ ] Confirm eligibility: the builder is a student aged 13 or over.
-- [ ] Paste the live link: https://puteal.vercel.app
-- [ ] Paste the repository link: https://github.com/mericcintosun/puteal
-- [ ] Attach at least three screenshots: story chapter 3 (share the load), story chapter 5 (a deep well dropped), and `/play` with a route card open.
-- [ ] Paste the project description: the purpose, the problem, the audience (field workers and student volunteers in arsenic-affected villages) and the SDG 6.1 link. README.md sections "The problem" and "The solution" hold the source text.
-- [ ] Paste the tech stack list from README.md, section "Tech stack".
-- [ ] Optional: a demo video of 1 to 5 minutes, recorded by the builder.
+- [ ] Live link in the form: https://puteal.vercel.app
+- [ ] Repository link in the form: https://github.com/mericcintosun/puteal
+- [ ] Attach at least three screenshots from the list in `docs/SCREENSHOTS.md`.
+- [ ] Fill every form field from SUBMISSION.md, in form order (description, tech stack, links, prize tracks).
