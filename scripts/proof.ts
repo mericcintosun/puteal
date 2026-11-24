@@ -71,10 +71,20 @@ async function proveOverpass(): Promise<Layout | null> {
     // Every Overpass mirror and the OSM main API run at once; the first usable answer wins.
     fetched = await fetchOsmLayout({ timeoutMs: 30_000, budgetMs: 80_000 });
   } catch (e) {
-    const tried = e instanceof Error && e.message !== codeOf(e) ? `: ${e.message}` : "";
+    const message = e instanceof Error ? e.message : String(e);
+    // fetchOsmLayout joins every source's reason with "; ". Lead with the one that answered:
+    // a "too sparse" or "buildings mapped" reason means OpenStreetMap did reply and the map
+    // itself is thin there, which matters more than a mirror timing out.
+    const reasons = message.split("; ").filter(Boolean);
+    const answered = reasons.filter((r) => /layout too sparse|buildings mapped/.test(r));
+    const failed = reasons.filter((r) => !answered.includes(r));
+    const why = answered.length
+      ? `OpenStreetMap answered, but the map is thin around the sample wells (${answered.join("; ")})` +
+        (failed.length ? `; the other sources did not answer (${failed.join("; ")})` : "")
+      : `no source answered (${codeOf(e)}${reasons.length ? `: ${reasons.join("; ")}` : ""})`;
     const line =
       `Not run in this build: no OpenStreetMap source returned a usable layout (at least ${CONFIG.minLayoutHouseholds} buildings, ` +
-      `${Math.round(CONFIG.minLayoutNearShare * 100)}% of them within 500 m of a sample well), neither an Overpass instance nor the OSM API (${codeOf(e)}${tried}). ` +
+      `${Math.round(CONFIG.minLayoutNearShare * 100)}% of them within 500 m of a sample well). ${why}. ` +
       `No snapshot was saved; the pages show the sample village and say why.`;
     console.log(`proof overpass: ${line}`);
     await writeBlock("README.md", "overpass", line);
