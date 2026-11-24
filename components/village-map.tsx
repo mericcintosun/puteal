@@ -192,8 +192,8 @@ export function VillageMap({ village, wells, solution, route, selected, dropMode
   }, [dropMode, ready]);
 
   return (
-    <div className="relative h-full w-full">
-      <div ref={box} className="h-full w-full" />
+    <div className="relative h-full min-h-80 w-full">
+      <div ref={box} role="region" aria-label={`Map of ${village.name}: households, wells and walking routes`} className="h-full w-full" />
       {!ready && (
         <div className="absolute inset-0 grid place-items-center bg-card text-sm text-muted-foreground">
           Loading the OpenStreetMap basemap and the walking graph
