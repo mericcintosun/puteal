@@ -30,21 +30,43 @@ const PLACE: Record<LayoutTier, string> = {
 
 const warn = (line: string) => console.warn(`${CONFIG.logPrefix} ${line}`);
 
-/** One Overpass POST to one instance with its own timeout. Throws a PutealError with a code. */
-async function overpassOnce(url: string, query: string, timeoutMs: number): Promise<OverpassElement[]> {
+type Shape = "post" | "get";
+
+/**
+ * One Overpass request to one instance with its own timeout. Throws a PutealError with a code.
+ * "post" is the documented form-encoded POST; "get" is the same query in ?data= with only
+ * Accept and User-Agent headers, used when an instance refuses the POST with a 406.
+ * `outer` aborts the request when another instance has already answered.
+ */
+async function overpassOnce(
+  url: string,
+  query: string,
+  timeoutMs: number,
+  shape: Shape,
+  outer?: AbortSignal,
+): Promise<OverpassElement[]> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const onOuter = () => ctrl.abort();
+  outer?.addEventListener("abort", onOuter);
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Accept: "application/json, */*;q=0.5",
-        "User-Agent": CONFIG.userAgent,
-      },
-      body: new URLSearchParams({ data: query }).toString(),
-      signal: ctrl.signal,
-    });
+    const res =
+      shape === "post"
+        ? await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+              Accept: "*/*",
+              "User-Agent": CONFIG.userAgent,
+            },
+            body: new URLSearchParams({ data: query }).toString(),
+            signal: ctrl.signal,
+          })
+        : await fetch(`${url}?${new URLSearchParams({ data: query }).toString()}`, {
+            method: "GET",
+            headers: { Accept: "*/*", "User-Agent": CONFIG.userAgent },
+            signal: ctrl.signal,
+          });
     if (!res.ok) throw new PutealError("upstream_error", `status ${res.status}`);
     let json: unknown;
     try {
@@ -62,6 +84,7 @@ async function overpassOnce(url: string, query: string, timeoutMs: number): Prom
     throw new PutealError("upstream_error", "network");
   } finally {
     clearTimeout(timer);
+    outer?.removeEventListener("abort", onOuter);
   }
 }
 
@@ -74,10 +97,19 @@ export interface OverpassOptions {
   budgetMs?: number;
 }
 
+/** HTTP status inside a PutealError detail ("status 406"), or null for timeouts and network failures. */
+function statusOf(e: unknown): number | null {
+  const m = e instanceof Error ? /status (\d{3})/.exec(e.message) : null;
+  return m ? Number(m[1]) : null;
+}
+
 /**
- * The Overpass call across CONFIG.overpassUrls: each instance once, in order, with a short
- * backoff between attempts. A single configured URL gets one retry instead. It stops at the
- * first answer, when the budget runs out, or on a parse failure (same query, same answer).
+ * The Overpass call across CONFIG.overpassUrls, all instances at once: the first one that
+ * answers wins and the others are aborted, so one slow or refusing mirror no longer eats
+ * the time the next one needed (each instance gets the whole budget, capped by timeoutMs).
+ * Per instance: a 406, 403 or 415 to the POST is tried once more as a GET; a 429, a 5xx, a
+ * timeout or a network failure is retried once after CONFIG.overpassBackoffMs while the
+ * budget allows; a parse failure is final (same query, same answer).
  * The thrown PutealError's message lists what every attempt got, for logs and the proof line.
  */
 export async function fetchOverpassElements(
@@ -86,28 +118,50 @@ export async function fetchOverpassElements(
 ): Promise<{ elements: OverpassElement[]; ms: number; host: string }> {
   const timeoutMs = opts.timeoutMs ?? CONFIG.overpassTimeoutMs;
   const budgetMs = opts.budgetMs ?? CONFIG.overpassBudgetMs;
-  const urls = CONFIG.overpassUrls.length > 1 ? [...CONFIG.overpassUrls] : [CONFIG.overpassUrls[0], CONFIG.overpassUrls[0]];
   const started = Date.now();
+  const left = () => budgetMs - (Date.now() - started);
+  const winner = new AbortController();
   const tried: string[] = [];
   let lastCode: ReturnType<typeof codeOf> = "upstream_error";
-  for (let i = 0; i < urls.length; i++) {
-    const left = budgetMs - (Date.now() - started);
-    if (left < 1000) break;
-    if (i > 0) await sleep(Math.min(CONFIG.overpassBackoffMs * i, left / 4));
-    const host = new URL(urls[i]).host;
-    log(`overpass requested host=${host} attempt=${i + 1}`);
-    try {
-      const elements = await overpassOnce(urls[i], query, Math.min(timeoutMs, budgetMs - (Date.now() - started)));
-      return { elements, ms: Date.now() - started, host };
-    } catch (e) {
-      lastCode = codeOf(e);
-      const detail = e instanceof Error && e.message !== lastCode ? `${lastCode}, ${e.message}` : lastCode;
-      tried.push(`${host}: ${detail}`);
-      warn(`overpass failed host=${host} attempt=${i + 1} ${detail}`);
-      if (lastCode === "parse_failure") break;
+
+  async function tryInstance(url: string): Promise<{ elements: OverpassElement[]; host: string }> {
+    const host = new URL(url).host;
+    let shape: Shape = "post";
+    let retried = false;
+    for (let attempt = 1; ; attempt++) {
+      if (left() < 1000) throw new PutealError(lastCode, `${host}: budget spent`);
+      log(`overpass requested host=${host} attempt=${attempt} shape=${shape}`);
+      try {
+        const elements = await overpassOnce(url, query, Math.min(timeoutMs, left()), shape, winner.signal);
+        return { elements, host };
+      } catch (e) {
+        if (winner.signal.aborted) throw e;
+        const code = codeOf(e);
+        const status = statusOf(e);
+        const detail = e instanceof Error && e.message !== code ? `${code}, ${e.message}` : code;
+        lastCode = code;
+        tried.push(`${host} ${shape.toUpperCase()}: ${detail}`);
+        warn(`overpass failed host=${host} attempt=${attempt} shape=${shape} ${detail}`);
+        if (code === "parse_failure") throw e;
+        if (shape === "post" && status !== null && [403, 406, 415].includes(status)) {
+          shape = "get";
+          continue;
+        }
+        const retryable = status === null || status === 429 || status >= 500;
+        if (!retryable || retried || left() < 3000) throw e;
+        retried = true;
+        await sleep(Math.min(CONFIG.overpassBackoffMs * (status === 429 ? 3 : 1), left() / 4));
+      }
     }
   }
-  throw new PutealError(lastCode, tried.length > 0 ? tried.join("; ") : "budget spent before the first attempt");
+
+  try {
+    const { elements, host } = await Promise.any(CONFIG.overpassUrls.map((u) => tryInstance(u)));
+    winner.abort();
+    return { elements, ms: Date.now() - started, host };
+  } catch {
+    throw new PutealError(lastCode, tried.length > 0 ? tried.join("; ") : "budget spent before the first attempt");
+  }
 }
 
 /** The box, query and parse options every caller shares. */

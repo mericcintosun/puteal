@@ -103,7 +103,7 @@ function buildSections(v: Village): { summary: string; body: React.ReactNode }[]
             : "Real: the engine and the OpenStreetMap basemap. When the site runs in live mode, or when you press the button in the planner, the houses and paths come from OpenStreetMap buildings and walkable ways, fetched by our server from the public Overpass API."}
         </p>
         <p>
-          The live layout answers from the first source that works: a live Overpass call ({CONFIG.overpassTimeoutMs / 1000} seconds per try across {CONFIG.overpassUrls.length > 1 ? `${CONFIG.overpassUrls.length} public mirrors` : "one server with one retry"}, {CONFIG.overpassBudgetMs / 1000} seconds in all), then a saved
+          The live layout answers from the first source that works: a live Overpass call ({CONFIG.overpassUrls.length > 1 ? `${CONFIG.overpassUrls.length} public mirrors asked at once, the first answer wins` : "one server"}, each retried once, {CONFIG.overpassBudgetMs / 1000} seconds in all), then a saved
           OpenStreetMap snapshot shipped with the site, then the sample village Charpara. The line under each readout says which one
           you are looking at.
         </p>

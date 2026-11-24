@@ -6,6 +6,7 @@ const DEFAULT_OVERPASS_URLS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
 
 /** One URL or a comma-separated list; anything that is not http(s) is dropped. */
@@ -19,16 +20,16 @@ function parseUrlList(raw: string | undefined, fallback: string[]): string[] {
 
 export const CONFIG = {
   /**
-   * Overpass instances for the live OSM layout, tried in order until one answers. Public and
-   * keyless; mirrors are listed on the OSM wiki. OVERPASS_URL takes one URL or a
+   * Overpass instances for the live OSM layout, all asked at once; the first answer wins.
+   * Public and keyless; mirrors are listed on the OSM wiki. OVERPASS_URL takes one URL or a
    * comma-separated list and replaces the default list.
    */
   overpassUrls: parseUrlList(process.env.OVERPASS_URL, DEFAULT_OVERPASS_URLS),
-  /** One Overpass attempt gives up after this many milliseconds. */
-  overpassTimeoutMs: 8000,
-  /** Every attempt together (each mirror, plus one retry when there is a single URL) stops after this. */
+  /** One Overpass attempt gives up after this many milliseconds (mirrors run in parallel). */
+  overpassTimeoutMs: 18_000,
+  /** Every attempt together (all mirrors in parallel, plus one retry each) stops after this. */
   overpassBudgetMs: 20_000,
-  /** Wait before the next attempt after a 429, a 5xx, a timeout or a network failure. */
+  /** Wait before retrying an instance after a 429 (three times this), a 5xx, a timeout or a network failure. */
   overpassBackoffMs: 700,
   /** Overpass asks clients to identify themselves; anonymous runtime user agents are throttled first. */
   userAgent: "Puteal/0.1 (+https://puteal.vercel.app; SDG 6.1 well planner)",
