@@ -21,7 +21,7 @@ export function SiteHeader() {
           <BrandMark />
           <span className="font-display text-lg font-semibold tracking-tight">Puteal</span>
         </Link>
-        <nav aria-label="Main">
+        <nav aria-label="Primary">
           <ul className="flex items-center gap-1 text-sm">
             {NAV.map((item) => {
               const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

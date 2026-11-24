@@ -1,13 +1,24 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+export const metadata: Metadata = {
+  title: "Page not found",
+};
+
 export default function NotFound() {
   return (
-    <div className="space-y-4 py-24 text-center">
-      <h2 className="text-xl font-semibold">Page not found</h2>
-      <Button asChild variant="outline">
-        <Link href="/">Back to home</Link>
-      </Button>
+    <div className="mx-auto max-w-prose px-5 py-24">
+      <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Puteal</p>
+      <h1 className="mt-3 text-3xl font-semibold">No footpath leads here</h1>
+      <p className="mt-4 leading-relaxed text-muted-foreground">
+        This page does not exist. The village story, the planner and the method notes are all one click away.
+      </p>
+      <div className="mt-6">
+        <Button asChild variant="outline">
+          <Link href="/">Back to the story</Link>
+        </Button>
+      </div>
     </div>
   );
 }

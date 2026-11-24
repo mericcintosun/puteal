@@ -8,7 +8,7 @@ const grotesk = Space_Grotesk({ subsets: ["latin"], display: "swap", variable: "
 const plex = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--font-plex" });
 
 export const metadata: Metadata = {
-  title: "Puteal: send every household to a safe well",
+  title: { default: "Puteal: safe wells for every household", template: "%s | Puteal" },
   description:
     "A village map for arsenic-affected Bangladesh that matches each household to a safe tubewell along real footpaths, keeps pumps from overcrowding, and shows where one new deep well would help most.",
 };
