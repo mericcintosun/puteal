@@ -156,16 +156,17 @@ export default async function NotesPage() {
   const sections = await loadSections();
   return (
     <article className="mx-auto max-w-prose px-5 pb-24 pt-12">
-      <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Appendix</p>
-      <h1 className="puteal-wipe mt-3 text-4xl font-semibold leading-tight">Method notes</h1>
-      <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-        How Puteal decides who walks where, the assumptions behind every number in the story, and which parts are real data. Open any
-        section for the detail.
-      </p>
+      <div className="puteal-wipe-group">
+        <p className="text-sm font-medium text-primary">Appendix</p>
+        <h1 className="mt-3 text-[2.375rem] font-semibold leading-[1.05] sm:text-display">Method notes</h1>
+        <p className="mt-5 text-standfirst text-foreground/85">
+          How Puteal decides who walks where, the assumptions behind every number in the story, and which parts are real data. Open
+          any section for the detail.
+        </p>
+      </div>
 
       <figure className="mt-8 overflow-hidden rounded-md border border-border border-t-edge bg-card">
-        <SceneSlot
-          n={3}
+        <SceneSlot n={3}
           alt="Top-down sketch of a village footpath network with houses joined to the nearest path and a new deep well marked in orange"
           width={960}
           height={640}
@@ -187,8 +188,15 @@ export default async function NotesPage() {
       </div>
 
       <section className="mt-12">
-        <h2 className="text-2xl font-semibold">Sources</h2>
-        <ul className="mt-4 space-y-2 break-words text-sm text-muted-foreground">
+        <h2 className="text-[1.625rem] font-semibold leading-tight sm:text-chapter">Sources</h2>
+        <details className="group mt-4 rounded-md border border-border border-t-edge bg-card">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-display font-semibold [&::-webkit-details-marker]:hidden">
+            Five sources, from KeebsforWater to the UN goal text
+            <span aria-hidden="true" className="text-primary transition-transform group-open:rotate-45">
+              +
+            </span>
+          </summary>
+        <ul className="space-y-2 break-words border-t border-border px-4 py-4 text-sm text-muted-foreground">
           <li>
             KeebsforWater, on arsenic in Bangladesh&apos;s tubewells:{" "}
             <a className="text-primary underline underline-offset-4" href="https://keebsforwater.org/">
@@ -222,6 +230,7 @@ export default async function NotesPage() {
             fetched through the Overpass API.
           </li>
         </ul>
+        </details>
         <p className="mt-8 text-sm">
           <Link href="/play" className="text-primary underline decoration-primary/50 underline-offset-4 hover:decoration-primary">
             Back to the planner

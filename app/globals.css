@@ -134,7 +134,10 @@ html.lenis body {
   overflow: hidden;
 }
 
-/* MOTION M4 wipe: clip-path inset reveal, 600ms. The only keyframe block. */
+/* MOTION M4 wipe: clip-path inset reveal, 600ms. The only keyframe block. The base state
+   of every element is fully visible; the keyframe only plays the reveal on top of it, so
+   server HTML without JavaScript or CSS animation support reads in place. Stagger comes
+   from nth-child rules on the slug-prefixed group, never from inline delay variables. */
 @keyframes puteal-wipe {
   from {
     clip-path: inset(0 100% 0 0);
@@ -143,23 +146,34 @@ html.lenis body {
     clip-path: inset(0 0 0 0);
   }
 }
-.puteal-wipe {
-  animation: puteal-wipe 600ms cubic-bezier(0.65, 0, 0.35, 1) both;
+.puteal-wipe,
+.puteal-wipe-group > * {
+  animation: puteal-wipe 600ms cubic-bezier(0.65, 0, 0.35, 1);
 }
-.puteal-wipe.puteal-wipe-2 {
+.puteal-wipe-group > :nth-child(2) {
   animation-delay: 120ms;
+  animation-fill-mode: backwards;
 }
-.puteal-wipe.puteal-wipe-3 {
+.puteal-wipe-group > :nth-child(3) {
   animation-delay: 240ms;
+  animation-fill-mode: backwards;
+}
+.puteal-wipe-group > :nth-child(n + 4) {
+  animation-delay: 360ms;
+  animation-fill-mode: backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .puteal-wipe,
-  .puteal-wipe.puteal-wipe-2,
-  .puteal-wipe.puteal-wipe-3 {
+  .puteal-wipe-group > * {
     animation: none;
     clip-path: none;
   }
+}
+
+/* Method strip: the sideways row hides its native scrollbar while the page scroll drives it. */
+.puteal-strip-row {
+  will-change: transform;
 }
 
 /* Route cards print alone, on white paper, in ink. */

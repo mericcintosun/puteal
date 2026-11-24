@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { RouteCard } from "@/components/route-card";
+import { SceneSlot } from "@/components/scene-slot";
 import { SdgCard } from "@/components/sdg-card";
 import { EmptyState, ErrorState } from "@/components/states";
 import { VillageMap } from "@/components/village-map";
@@ -241,9 +242,9 @@ export function Planner({
               {showLinkHint && linkHint && (
                 <p className="text-xs text-warn">
                   {linkHint}{" "}
-                  <button type="button" className="inline-flex min-h-11 items-center underline underline-offset-2" onClick={() => setShowLinkHint(false)}>
+                  <Button variant="link" size="sm" className="ml-1 min-h-11 text-warn" onClick={() => setShowLinkHint(false)}>
                     Dismiss
-                  </button>
+                  </Button>
                 </p>
               )}
             </div>
@@ -316,10 +317,16 @@ export function Planner({
             onClose={() => setSelected(null)}
           />
         ) : (
-          <Card>
+          <Card className="overflow-hidden">
+            <SceneSlot n={4}
+              alt="A house joined by a dotted footpath to a tubewell with a green spout, and a blank route card waiting beside them"
+              width={960}
+              height={420}
+              className="border-b border-border"
+            />
             <CardContent className="p-4 text-sm text-muted-foreground">
-              Click a house on the map and its route card opens here: the well to use, its test value, the distance along the path and
-              the minutes each way, ready to print.
+              Click any house on the map to open its route card here: the well to use, its test value, the distance along the path
+              and the minutes each way, ready to print.
             </CardContent>
           </Card>
         )}

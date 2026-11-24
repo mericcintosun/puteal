@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -65,16 +66,18 @@ export function SiteHeader() {
             })}
           </ul>
         </nav>
-        <button
+        <Button
           type="button"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border border-t-edge bg-card text-foreground md:hidden"
+          variant="outline"
+          size="icon"
+          className="size-11 md:hidden"
           aria-expanded={open}
           aria-controls={PANEL_ID}
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((o) => !o)}
         >
-          {open ? <X aria-hidden="true" className="size-5" /> : <Menu aria-hidden="true" className="size-5" />}
-        </button>
+          {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+        </Button>
       </div>
       <nav
         id={PANEL_ID}

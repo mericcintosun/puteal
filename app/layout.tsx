@@ -39,13 +39,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SmoothScroll />
         <SiteHeader />
         <main>{children}</main>
-        <footer className="puteal-noprint border-t border-border">
-          <div className="mx-auto max-w-6xl px-5 py-8 text-sm text-muted-foreground">
-            <p className="max-w-prose">
-              Puteal works toward UN SDG target 6.1, safe and affordable drinking water for all. The demo village and its
-              well test values are sample data; the planner can load real buildings and paths. Map data from OpenStreetMap
-              contributors.
-            </p>
+        <footer className="puteal-noprint mt-8 border-t border-border">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <p className="max-w-prose">Built for SDG 6.1; well test values are sample data, map data from OpenStreetMap contributors.</p>
+            <ul className="flex flex-wrap gap-x-5">
+              <li>
+                <a
+                  href="https://github.com/mericcintosun/puteal"
+                  className="inline-flex min-h-11 items-center text-foreground underline decoration-primary/50 underline-offset-4 hover:decoration-primary"
+                >
+                  Source on GitHub
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://acodemic-x-keebsforwater-global-sdg-hackathon.devpost.com/"
+                  className="inline-flex min-h-11 items-center text-foreground underline decoration-primary/50 underline-offset-4 hover:decoration-primary"
+                >
+                  Acodemic X KeebsforWater hackathon
+                </a>
+              </li>
+            </ul>
           </div>
         </footer>
       </body>

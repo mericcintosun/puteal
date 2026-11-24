@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Download, FileUp, RotateCcw } from "lucide-react";
 import { ErrorState, ListSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { LatLon, Well } from "@/lib/types";
 import { parseWellsCsv, type RejectedRow } from "@/lib/wells-csv";
 import { WELLS_EXAMPLE_CSV, WELLS_EXAMPLE_NAME } from "@/lib/wells-example";
@@ -91,7 +92,9 @@ export function WellsImport({
         A CSV with the columns name, lat, lon, arsenic_ugl and an optional capacity, up to 40 wells. It replaces the sample wells;
         everything stays in this browser.
       </p>
-      <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" onChange={onFile} tabIndex={-1} aria-hidden="true" />
+      <div className="sr-only">
+        <Input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onFile} tabIndex={-1} aria-hidden="true" aria-label="Wells CSV file" />
+      </div>
       <div className="grid grid-cols-2 gap-1.5">
         <Button variant="outline" size="sm" className="min-h-11 whitespace-normal" onClick={() => fileRef.current?.click()} disabled={busy}>
           <FileUp /> Import CSV
