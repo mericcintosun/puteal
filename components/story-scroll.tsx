@@ -6,8 +6,9 @@ import { useLenis } from "lenis/react";
 import { motion, useScroll } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
-import { PROPOSED_DEEP_WELL, THRESHOLDS, proposeDeepWell, type Pt, type Village, type Well } from "@/lib/data";
+import { PROPOSED_DEEP_WELL, THRESHOLDS, proposeDeepWell, type AdapterMode, type Pt, type Village, type Well } from "@/lib/data";
 import { fmtMeters, fmtPeople, prepareVillage, routeFor, solve } from "@/lib/engine";
+import { sourceLine } from "@/lib/source-line";
 import { cn } from "@/lib/utils";
 
 const CHAPTERS = [
@@ -23,9 +24,10 @@ const CHAPTERS = [
  * Each chapter sets the engine state (threshold, capacity rule, proposed wells); the last
  * hands the plan to the reader. Kit K3 signature 1: Lenis root plus a chapter rail whose
  * fill is bound to page scroll. The village arrives as a prop from the server page, which
- * reads it through the adapter seam (lib/adapter.ts).
+ * reads it through the adapter seam (lib/adapter.ts); the same code runs on the sample
+ * village and on a live OpenStreetMap layout, solved in the browser either way.
  */
-export function StoryScroll({ village }: { village: Village }) {
+export function StoryScroll({ village, mode }: { village: Village; mode: AdapterMode }) {
   const baseWells = village.wells;
   const hamletName = (id: string | null) => village.hamlets.find((h) => h.id === id)?.name ?? "the far end";
   const wellName = (id: string | null) => baseWells.find((w) => w.id === id)?.name ?? "a full pump";
@@ -139,7 +141,6 @@ export function StoryScroll({ village }: { village: Village }) {
         </figure>
         <div key={active} className="puteal-wipe mt-2 flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">
-            {village.source === "sample" ? "Sample data, " : ""}
             {view.solution.threshold} µg/L limit, {view.solution.capacitated ? "pumps capped" : "no pump cap"},{" "}
             <span className={view.solution.kpis.farPeople > 0 ? "text-bad" : "text-ok"}>
               {fmtPeople(view.solution.kpis.farPeople)} people over 500 m
@@ -148,12 +149,15 @@ export function StoryScroll({ village }: { village: Village }) {
           </span>
           <PlanLegend className="hidden sm:flex" />
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">{sourceLine(mode, village)}</p>
       </div>
 
       <div className="relative z-10">
         <Chapter i={0} title="A village of tubewells">
           <p>
-            {village.name} is a sample village laid out on the scale of Araihazar upazila, about 30 km east of Dhaka. It has{" "}
+            {village.source === "osm"
+              ? `This is a real stretch of Araihazar upazila, about 30 km east of Dhaka: every house on the plan is a building mapped on OpenStreetMap, and the paths are its mapped lanes and footpaths. The wells are still the sample wells of Charpara. It has `
+              : `${village.name} is a sample village laid out on the scale of Araihazar upazila, about 30 km east of Dhaka. It has `}
             <strong>{village.households.length} households</strong>, roughly {fmtPeople(kb.people)} people at 4.2 per home, and{" "}
             {baseWells.length} hand-pumped tubewells. Under Bangladesh&apos;s limit of 50 µg/L, <strong>{unsafe50} of those wells</strong>{" "}
             test unsafe and get their spouts painted red.

@@ -1,23 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/adapter";
-import type { ApiResponse, Solution, SolveRequest } from "@/lib/types";
+import { codeOf, hintFor, statusFor, type ErrorCode } from "@/lib/errors";
+import { solveRequestSchema } from "@/lib/schemas";
+import type { ApiResponse, Solution } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function badRequest(message: string) {
-  const body: ApiResponse<Solution> = { ok: false, error: { code: "bad_request", message } };
-  return NextResponse.json(body, { status: 400 });
-}
-
-// Minimal shape check only; the full validation taxonomy lands in Phase 2.
-function asSolveRequest(x: unknown): SolveRequest | null {
-  if (typeof x !== "object" || x === null) return null;
-  const r = x as Record<string, unknown>;
-  if (typeof r.threshold !== "number" || !Number.isFinite(r.threshold)) return null;
-  if (typeof r.capacityOn !== "boolean") return null;
-  const extra = r.extraWells ?? [];
-  if (!Array.isArray(extra)) return null;
-  return { threshold: r.threshold, capacityOn: r.capacityOn, extraWells: extra as SolveRequest["extraWells"] };
+function fail(code: ErrorCode) {
+  const body: ApiResponse<Solution> = { ok: false, error: code, hint: hintFor(code) };
+  return NextResponse.json(body, { status: statusFor(code) });
 }
 
 export async function POST(request: Request) {
@@ -25,21 +16,17 @@ export async function POST(request: Request) {
   try {
     json = await request.json();
   } catch {
-    return badRequest("The request body is not valid JSON.");
+    return fail("invalid_input");
   }
-  const req = asSolveRequest(json);
-  if (!req) return badRequest("Send { threshold: number, capacityOn: boolean, extraWells: Well[] }.");
+  const parsed = solveRequestSchema.safeParse(json);
+  if (!parsed.success) return fail("invalid_input");
 
   const adapter = getAdapter();
   try {
-    const solution = await adapter.solve(req);
+    const solution = await adapter.solve(parsed.data);
     const body: ApiResponse<Solution> = { ok: true, data: solution, mode: adapter.mode };
     return NextResponse.json(body, { status: 200 });
-  } catch {
-    const body: ApiResponse<Solution> = {
-      ok: false,
-      error: { code: "adapter_error", message: "The plan could not be solved." },
-    };
-    return NextResponse.json(body, { status: 500 });
+  } catch (e) {
+    return fail(codeOf(e));
   }
 }

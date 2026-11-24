@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default async function PlayPage() {
-  const village = await getAdapter().getVillage();
+  const adapter = getAdapter();
+  const village = await adapter.getVillage();
   return (
     <div className="mx-auto max-w-6xl px-5 pb-16 pt-8">
       <div className="mb-6 max-w-prose">
@@ -19,7 +20,7 @@ export default async function PlayPage() {
           {village.source === "sample" && ` It opens on ${village.name}, a sample village: the layout and every well test are sample data.`}
         </p>
       </div>
-      <Planner initialVillage={village} />
+      <Planner initialVillage={village} mode={adapter.mode} />
     </div>
   );
 }

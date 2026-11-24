@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 // L3 editorial: one centered column at max-w-prose, magazine order. Kicker, display
 // headline, standfirst, inline figure, the live story with its CTA mid-article, a coda.
 export default async function Home() {
-  const village = await getAdapter().getVillage();
+  const adapter = getAdapter();
+  const village = await adapter.getVillage();
   return (
     <article className="mx-auto max-w-prose px-5 pb-24 pt-12">
       <p className="puteal-wipe text-xs font-medium uppercase tracking-[0.2em] text-primary">
@@ -42,13 +43,15 @@ export default async function Home() {
       </figure>
 
       <p className="mt-10 text-[1.0625rem] leading-relaxed">
-        Scroll on and the plan below follows the story of one sample village, {village.name}. Its layout and well tests are sample
-        data, not survey results. Every number in the text is computed live by
+        {village.source === "osm"
+          ? "Scroll on and the plan below follows one real village layout: buildings and footpaths fetched from OpenStreetMap, with the sample wells of Charpara placed on it. The well tests are sample data, not survey results."
+          : `Scroll on and the plan below follows the story of one sample village, ${village.name}. Its layout and well tests are sample data, not survey results.`}{" "}
+        Every number in the text is computed live by
         the same engine that runs the planner: a walking graph over the village footpaths, shortest paths from every safe well, and a
         capacity cap on every pump.
       </p>
 
-      <StoryScroll village={village} />
+      <StoryScroll village={village} mode={adapter.mode} />
 
       <section className="mt-16 border-t border-border pt-12">
         <h2 className="text-2xl font-semibold sm:text-3xl">A card for every door</h2>

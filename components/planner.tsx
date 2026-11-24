@@ -8,23 +8,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RouteCard } from "@/components/route-card";
 import { VillageMap } from "@/components/village-map";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
-import { THRESHOLDS, proposeDeepWell, type Pt, type Village, type Well } from "@/lib/data";
+import { SAMPLE_VILLAGE, THRESHOLDS, proposeDeepWell, type AdapterMode, type Pt, type Village, type Well } from "@/lib/data";
 import { fmtMeters, fmtPeople, kitReading, prepareVillage, routeFor, solve } from "@/lib/engine";
+import type { ErrorCode } from "@/lib/errors";
 import { loadOsmVillage } from "@/lib/overpass";
+import { sourceLine } from "@/lib/source-line";
 import { cn } from "@/lib/utils";
 
 type OsmStatus =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "ok"; buildings: number; ways: number; cached: boolean };
+  | { kind: "error"; code: ErrorCode; hint: string }
+  | { kind: "ok"; buildings: number; ways: number };
 
 /**
  * The free-form planner: same engine as the story, no narrative, every control open.
- * The starting village comes from the server page through the adapter seam.
+ * The starting village and the adapter mode come from the server page through the adapter seam.
  */
-export function Planner({ initialVillage }: { initialVillage: Village }) {
+export function Planner({ initialVillage, mode: initialMode }: { initialVillage: Village; mode: AdapterMode }) {
   const [village, setVillage] = useState<Village>(initialVillage);
+  const [mode, setMode] = useState<AdapterMode>(initialMode);
   const [threshold, setThreshold] = useState<number>(THRESHOLDS.bangladesh);
   const [capacitated, setCapacitated] = useState(true);
   const [dropMode, setDropMode] = useState(false);
@@ -52,18 +55,21 @@ export function Planner({ initialVillage }: { initialVillage: Village }) {
 
   async function loadOsm() {
     setOsm({ kind: "loading" });
-    try {
-      const r = await loadOsmVillage(initialVillage);
-      setVillage(r.village);
-      setSelected(null);
-      setOsm({ kind: "ok", buildings: r.buildings, ways: r.ways, cached: r.fromCache });
-    } catch (e) {
-      setOsm({ kind: "error", message: e instanceof Error ? e.message : "Overpass did not answer." });
+    const r = await loadOsmVillage();
+    if (!r.ok) {
+      setOsm({ kind: "error", code: r.error, hint: r.hint });
+      return;
     }
+    setVillage(r.village);
+    setMode(r.mode);
+    setSelected(null);
+    // The server fell back to the sample village: say so through the code, not provider text.
+    setOsm(r.village.source === "osm" ? { kind: "ok", buildings: r.buildings, ways: r.ways } : { kind: "error", code: "upstream_error", hint: sourceLine(r.mode, r.village) });
   }
 
   function backToSample() {
-    setVillage(initialVillage);
+    setVillage(SAMPLE_VILLAGE);
+    setMode("fake");
     setSelected(null);
     setOsm({ kind: "idle" });
   }
@@ -182,6 +188,7 @@ export function Planner({ initialVillage }: { initialVillage: Village }) {
                 <strong className="text-ok">{fmtPeople(k.farPeople)}</strong>.
               </p>
             )}
+            <p className="border-t border-border pt-2 text-xs text-muted-foreground">{sourceLine(mode, village)}</p>
           </CardContent>
         </Card>
 
@@ -208,7 +215,7 @@ export function Planner({ initialVillage }: { initialVillage: Village }) {
             <CardDescription>
               {village.source === "sample"
                 ? "Sample layout of Charpara. Load real buildings and paths from OpenStreetMap through the Overpass API."
-                : "Real OpenStreetMap buildings and paths. Well values are still sample data."}
+                : `${village.place}.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -223,10 +230,12 @@ export function Planner({ initialVillage }: { initialVillage: Village }) {
             )}
             {osm.kind === "ok" && (
               <p className="text-xs text-muted-foreground">
-                {osm.buildings} buildings and {osm.ways} walkable ways{osm.cached ? ", from this browser's cache" : ", fetched live"}.
+                {osm.buildings} buildings and {osm.ways} walkable ways from OpenStreetMap.
               </p>
             )}
-            {osm.kind === "error" && <p className="text-xs text-bad">{osm.message}</p>}
+            {osm.kind === "error" && (
+              <p className={cn("text-xs", osm.code === "upstream_timeout" ? "text-warn" : "text-bad")}>{osm.hint}</p>
+            )}
           </CardContent>
         </Card>
 

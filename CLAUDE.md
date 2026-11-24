@@ -13,8 +13,11 @@ Read `IDENTITY.md` first; it is law for color, type, routes, layout and motion. 
 - `lib/types.ts`: model types, `ApiResponse<T>`, `SolveRequest`
 - `lib/data/seed.ts`: the sample village Charpara (deterministic; import type only, relative paths, erasable syntax so Node can strip it)
 - `lib/data.ts`: barrel over the two files above; existing `@/lib/data` imports go through it
-- `lib/adapter.ts`: `getAdapter()` returns `fakeAdapter` unless `ADAPTER_MODE=real`
+- `lib/adapter.ts`: the selector; `getAdapter()` returns `fakeAdapter` (`lib/adapter.fake.ts`) unless `ADAPTER_MODE=real`, then `realAdapter` (`lib/adapter.real.ts`, server only: live Overpass, snapshot, sample)
+- `lib/config.ts`: the only reader of `process.env` (besides `next.config.ts` and `lib/brand-files.ts`)
+- `lib/osm.ts`: pure Overpass query builder and parser; `lib/schemas.ts`: zod schemas; `lib/errors.ts`: error codes and hints
 - `lib/engine.ts`: pure solver, safe on server and client
+- `npm test` (vitest) and `npm run proof` (tsx, rewrites the PROOF marker blocks in README.md and DEMO.md)
 - `app/api/village`, `app/api/solve`: route handlers that answer through the adapter
 - Pages `/`, `/play`, `/notes` read the village through `getAdapter()` and pass it down as a prop
 
