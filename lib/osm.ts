@@ -3,7 +3,7 @@
 // no fetch, so the real adapter, the proof script and the tests all share it.
 
 import { CONFIG } from "./config";
-import { PEOPLE_PER_HOUSEHOLD } from "./data/seed";
+import { FAR_METERS, PEOPLE_PER_HOUSEHOLD } from "./data/seed";
 import { boundsOf, toLngLat, toMeters } from "./engine";
 import { PutealError } from "./errors";
 import type { OverpassElement } from "./schemas";
@@ -157,6 +157,26 @@ export function parseOsmElements(elements: OverpassElement[], base: Village, opt
     households: assigned,
     paths,
   };
+}
+
+/**
+ * Can this OSM layout carry the story's numbers? The wells stay the sample village's, so a
+ * layout only makes sense when enough mapped buildings sit within walking reach of them. A
+ * thinly mapped box (16 buildings about 2 km from the wells, as the proof runner saw) would
+ * put every person over 500 m and make "brings 0 people back" the headline. Throws
+ * parse_failure with the counts when the layout does not fit; the caller falls back.
+ */
+export function assertLayoutFits(v: Village): void {
+  const near = v.households.filter((h) =>
+    v.wells.some((w) => Math.hypot(w.pos.x - h.pos.x, w.pos.y - h.pos.y) <= FAR_METERS),
+  ).length;
+  const n = v.households.length;
+  if (n < CONFIG.minLayoutHouseholds || near < n * CONFIG.minLayoutNearShare) {
+    throw new PutealError(
+      "parse_failure",
+      `layout too sparse: ${n} buildings, ${near} within ${FAR_METERS} m of a sample well (needs ${CONFIG.minLayoutHouseholds} buildings, ${Math.round(CONFIG.minLayoutNearShare * 100)}% near)`,
+    );
+  }
 }
 
 /** Keeps only what the parser reads, so a saved snapshot stays small. */

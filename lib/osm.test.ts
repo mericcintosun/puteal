@@ -3,7 +3,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { SAMPLE_VILLAGE } from "./data/seed";
 import { PutealError } from "./errors";
-import { bboxAround, buildOsmQuery, elementsFromOsmApi, osmApiMapUrl, parseOsmElements } from "./osm";
+import { assertLayoutFits, bboxAround, buildOsmQuery, elementsFromOsmApi, osmApiMapUrl, parseOsmElements } from "./osm";
 import { overpassResponseSchema } from "./schemas";
 
 const raw = JSON.parse(readFileSync(path.join(process.cwd(), "fixtures", "osm-mini.json"), "utf8"));
@@ -80,5 +80,21 @@ describe("elementsFromOsmApi", () => {
     expect(osmApiMapUrl("https://api.openstreetmap.org", box)).toBe(
       `https://api.openstreetmap.org/api/0.6/map.json?bbox=${[box.west, box.south, box.east, box.north].map((n) => n.toFixed(5)).join(",")}`,
     );
+  });
+});
+
+describe("assertLayoutFits", () => {
+  it("accepts the sample village (100 households around its own wells)", () => {
+    expect(() => assertLayoutFits(SAMPLE_VILLAGE)).not.toThrow();
+  });
+
+  it("refuses a layout with too few buildings", () => {
+    const v = parseOsmElements(elements, SAMPLE_VILLAGE, opts);
+    expect(() => assertLayoutFits(v)).toThrow(/layout too sparse/);
+  });
+
+  it("refuses a layout whose buildings sit far from every sample well", () => {
+    const far = SAMPLE_VILLAGE.households.map((h) => ({ ...h, pos: { x: h.pos.x + 5000, y: h.pos.y + 5000 } }));
+    expect(() => assertLayoutFits({ ...SAMPLE_VILLAGE, households: far })).toThrow(PutealError);
   });
 });

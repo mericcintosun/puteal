@@ -16,7 +16,7 @@ import { CONFIG } from "./config";
 import { SAMPLE_VILLAGE } from "./data/seed";
 import { prepareVillage, solve, type Prepared } from "./engine";
 import { PutealError, codeOf } from "./errors";
-import { bboxAround, buildOsmQuery, elementsFromOsmApi, osmApiMapUrl, parseOsmElements } from "./osm";
+import { assertLayoutFits, bboxAround, buildOsmQuery, elementsFromOsmApi, osmApiMapUrl, parseOsmElements } from "./osm";
 import { overpassResponseSchema, type OverpassElement } from "./schemas";
 import type { LayoutTier, PutealAdapter, Village } from "./types";
 
@@ -27,6 +27,7 @@ const PLACE: Record<LayoutTier, string> = {
   snapshot: "Saved OpenStreetMap snapshot, sample well values",
   fallback: "Live OpenStreetMap unavailable, showing the sample village",
 };
+const PLACE_SPARSE = "OpenStreetMap maps few buildings here yet, showing the sample village";
 
 const warn = (line: string) => console.warn(`${CONFIG.logPrefix} ${line}`);
 
@@ -298,8 +299,9 @@ export async function fetchOsmLayout(
   const plan = osmPlan();
   const usable = async (p: Promise<{ elements: OverpassElement[]; ms: number; host: string }>) => {
     const r = await p;
-    // Fewer than 5 buildings makes the parser refuse; let the other source win instead.
-    parseOsmElements(r.elements, SAMPLE_VILLAGE, plan.parse);
+    // Fewer than 5 buildings makes the parser refuse, and a layout too sparse around the
+    // sample wells fails assertLayoutFits; either way let the other source win instead.
+    assertLayoutFits(parseOsmElements(r.elements, SAMPLE_VILLAGE, plan.parse));
     return r;
   };
   const sources = [usable(fetchOverpassElements(plan.query, { ...opts, signal: winner.signal }))];
@@ -317,7 +319,14 @@ export async function fetchOsmLayout(
 
 function villageFrom(elements: OverpassElement[], tier: LayoutTier): Village {
   const v = parseOsmElements(elements, SAMPLE_VILLAGE, osmPlan().parse);
+  assertLayoutFits(v);
   return { ...v, place: PLACE[tier], layoutTier: tier };
+}
+
+/** True when the error says OSM answered but the layout was too thin to use. */
+function isSparse(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /layout too sparse|buildings mapped/.test(msg);
 }
 
 async function liveVillage(): Promise<Village> {
@@ -327,8 +336,11 @@ async function liveVillage(): Promise<Village> {
   return v;
 }
 
-/** The saved snapshot, or null when there is none. A missing file is a normal miss. */
-async function snapshotVillage(): Promise<Village | null> {
+/**
+ * The saved snapshot, "sparse" when it parses but is too thin around the sample wells, or
+ * null when there is none or it is unreadable. A missing file is a normal miss.
+ */
+async function snapshotVillage(): Promise<Village | "sparse" | null> {
   let raw: string;
   try {
     raw = await fs.readFile(path.join(process.cwd(), CONFIG.snapshotPath), "utf8");
@@ -343,8 +355,8 @@ async function snapshotVillage(): Promise<Village | null> {
     log(`snapshot hit buildings=${v.households.length} ways=${v.paths.length}`);
     return v;
   } catch (e) {
-    log(`snapshot failed code=${codeOf(e)}`);
-    return null;
+    log(`snapshot not used code=${codeOf(e)} ${e instanceof Error ? e.message : ""}`);
+    return isSparse(e) ? "sparse" : null;
   }
 }
 
@@ -357,15 +369,30 @@ async function loadVillage(): Promise<Village> {
     return cached.village;
   }
   let village: Village | null = null;
+  let sparse = false;
   try {
     village = await liveVillage();
-  } catch {
-    // logged inside fetchOverpassElements; fall through to the snapshot
+  } catch (e) {
+    // Each failed attempt is logged inside the fetchers; fall through to the snapshot.
+    sparse = isSparse(e);
   }
-  if (!village) village = await snapshotVillage();
   if (!village) {
-    warn("sample fallback: no Overpass instance answered and no snapshot is saved");
-    village = { ...SAMPLE_VILLAGE, place: PLACE.fallback, layoutTier: "fallback" };
+    const snap = await snapshotVillage();
+    if (snap === "sparse") sparse = true;
+    else if (snap) village = snap;
+  }
+  if (!village) {
+    warn(
+      sparse
+        ? "sample fallback: OpenStreetMap answered, but maps too few buildings near the sample wells"
+        : "sample fallback: no OpenStreetMap source answered and no usable snapshot is saved",
+    );
+    village = {
+      ...SAMPLE_VILLAGE,
+      place: sparse ? PLACE_SPARSE : PLACE.fallback,
+      layoutTier: "fallback",
+      fallbackReason: sparse ? "sparse" : "unavailable",
+    };
   }
   cached = { at: Date.now(), village };
   return village;

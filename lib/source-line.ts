@@ -12,6 +12,9 @@ export function sourceLine(mode: AdapterMode, village: Village, opts: { imported
       : `Live layout: OpenStreetMap buildings and footpaths. ${wells}`;
   }
   if (opts.importedWells) return `Sample layout of Charpara with your imported wells, solved in your browser. ${wells}`;
+  if (mode === "real" && village.fallbackReason === "sparse") {
+    return "OpenStreetMap maps only a few buildings around these wells so far, so this is the sample village. Well test values are sample data.";
+  }
   if (mode === "real") return "Live OpenStreetMap was unavailable, so this is the sample village.";
   return "Sample data: the sample village Charpara, solved in your browser.";
 }

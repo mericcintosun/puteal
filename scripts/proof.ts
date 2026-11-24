@@ -18,7 +18,7 @@ import { CONFIG } from "../lib/config";
 import { PROPOSED_DEEP_WELL, SAMPLE_VILLAGE, THRESHOLDS } from "../lib/data/seed";
 import { prepareVillage, solve } from "../lib/engine";
 import { codeOf } from "../lib/errors";
-import { parseOsmElements, slimElements } from "../lib/osm";
+import { assertLayoutFits, parseOsmElements, slimElements } from "../lib/osm";
 import { overpassResponseSchema, type OverpassElement } from "../lib/schemas";
 import type { Village } from "../lib/types";
 import { parseWellsCsv } from "../lib/wells-csv";
@@ -72,7 +72,10 @@ async function proveOverpass(): Promise<Layout | null> {
     fetched = await fetchOsmLayout({ timeoutMs: 30_000, budgetMs: 80_000 });
   } catch (e) {
     const tried = e instanceof Error && e.message !== codeOf(e) ? `: ${e.message}` : "";
-    const line = `Not run in this build: no OpenStreetMap source returned a usable layout (at least 5 buildings), neither an Overpass instance nor the OSM API (${codeOf(e)}${tried}).`;
+    const line =
+      `Not run in this build: no OpenStreetMap source returned a usable layout (at least ${CONFIG.minLayoutHouseholds} buildings, ` +
+      `${Math.round(CONFIG.minLayoutNearShare * 100)}% of them within 500 m of a sample well), neither an Overpass instance nor the OSM API (${codeOf(e)}${tried}). ` +
+      `No snapshot was saved; the pages show the sample village and say why.`;
     console.log(`proof overpass: ${line}`);
     await writeBlock("README.md", "overpass", line);
     return null;
@@ -83,6 +86,7 @@ async function proveOverpass(): Promise<Layout | null> {
   let village: Village;
   try {
     village = parseOsmElements(elements, SAMPLE_VILLAGE, plan.parse);
+    assertLayoutFits(village);
   } catch (e) {
     const line = `Run on ${today}: OpenStreetMap (${host}) answered in ${ms} ms, but the layout could not be used (${codeOf(e)}), so no snapshot was saved.`;
     console.log(`proof overpass: ${line}`);
@@ -115,7 +119,10 @@ async function snapshotLayout(): Promise<Layout | null> {
     const raw = await fs.readFile(path.join(ROOT, CONFIG.snapshotPath), "utf8");
     const parsed = overpassResponseSchema.safeParse(JSON.parse(raw));
     if (!parsed.success) return null;
-    return { village: parseOsmElements(parsed.data.elements, SAMPLE_VILLAGE, osmPlan().parse), label: "saved OpenStreetMap snapshot" };
+    const village = parseOsmElements(parsed.data.elements, SAMPLE_VILLAGE, osmPlan().parse);
+    // The pages skip a snapshot too sparse around the sample wells; so does the proof.
+    assertLayoutFits(village);
+    return { village, label: "saved OpenStreetMap snapshot" };
   } catch {
     return null;
   }
@@ -141,7 +148,7 @@ async function proveEngine(layout: Layout | null): Promise<void> {
     const line =
       `Run on ${today} on the sample village Charpara (${SAMPLE_VILLAGE.households.length} households, ${sample.people} people, ` +
       `sample wells), solved in ${sample.ms} ms: ${sampleSentence.replace(/^On the sample village Charpara, /, "")} ` +
-      `The OpenStreetMap layout was not available in this build (no OpenStreetMap source answered and no saved snapshot), so that figure was not computed.`;
+      `No usable OpenStreetMap layout was available in this build (no source returned enough mapped buildings near the sample wells, and no usable saved snapshot), so that figure was not computed.`;
     console.log(`proof engine: ${line}`);
     await writeBlock("README.md", "engine", line);
     await writeBlock("DEMO.md", "demo-closing", `${sampleSentence} The OpenStreetMap figure was not run in this build: no OSM layout available.`);

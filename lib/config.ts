@@ -61,6 +61,13 @@ export const CONFIG = {
   halfSizeM: 650,
   /** Buildings kept, nearest to the centre first, so the browser solve stays quick. */
   maxBuildings: 700,
+  /**
+   * A live or saved OSM layout is used for the pages only when it has at least this many
+   * buildings and this share of them within 500 m of a sample well (lib/osm.ts
+   * assertLayoutFits). Below that the sample village is shown, with a line saying why.
+   */
+  minLayoutHouseholds: 30,
+  minLayoutNearShare: 0.5,
   /** OSM highway values a person carrying water would walk along. */
   walkableHighways: "footway|path|track|residential|unclassified|service|living_street|pedestrian|tertiary|steps",
   /** How long a server instance reuses an OpenStreetMap village it built, in milliseconds. */

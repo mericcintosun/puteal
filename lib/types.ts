@@ -68,6 +68,11 @@ export interface Village {
   origin: LatLon;
   source: "sample" | "osm";
   layoutTier?: LayoutTier;
+  /**
+   * Set with layoutTier "fallback": "unavailable" when no OSM source answered, "sparse" when
+   * OSM answered but maps too few buildings near the sample wells for the numbers to mean much.
+   */
+  fallbackReason?: "unavailable" | "sparse";
   hamlets: Hamlet[];
   wells: Well[];
   paths: FootPath[];
