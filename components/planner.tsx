@@ -1,19 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Crosshair, Map as MapIcon, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Crosshair, Link2, Map as MapIcon, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { RouteCard } from "@/components/route-card";
+import { EmptyState, ErrorState } from "@/components/states";
 import { VillageMap } from "@/components/village-map";
 import { PlanLegend, VillagePlan } from "@/components/village-plan";
+import { WellsImport } from "@/components/wells-import";
 import { SAMPLE_VILLAGE, THRESHOLDS, proposeDeepWell, type AdapterMode, type Pt, type Village, type Well } from "@/lib/data";
 import { fmtMeters, fmtPeople, kitReading, prepareVillage, routeFor, solve } from "@/lib/engine";
 import type { ErrorCode } from "@/lib/errors";
 import { loadOsmVillage } from "@/lib/overpass";
+import { DEFAULT_PLANNER_STATE, plannerSearch, type PlannerState } from "@/lib/planner-url";
 import { sourceLine } from "@/lib/source-line";
 import { cn } from "@/lib/utils";
+import { exportAssignmentsCsv } from "@/lib/wells-csv";
 
 type OsmStatus =
   | { kind: "idle" }
@@ -21,25 +26,67 @@ type OsmStatus =
   | { kind: "error"; code: ErrorCode; hint: string }
   | { kind: "ok"; buildings: number; ways: number };
 
+type CopyStatus = { kind: "idle" } | { kind: "copied" } | { kind: "manual"; url: string };
+
 /**
  * The free-form planner: same engine as the story, no narrative, every control open.
- * The starting village and the adapter mode come from the server page through the adapter seam.
+ * The starting village and the adapter mode come from the server page through the adapter seam;
+ * the limit, the pump cap and the reader's deep wells come from the URL, parsed on the server.
  */
-export function Planner({ initialVillage, mode: initialMode }: { initialVillage: Village; mode: AdapterMode }) {
+export function Planner({
+  initialVillage,
+  mode: initialMode,
+  initial = DEFAULT_PLANNER_STATE,
+  linkHint = null,
+}: {
+  initialVillage: Village;
+  mode: AdapterMode;
+  initial?: PlannerState;
+  /** Set when part of the incoming link was invalid and fell back to a default. */
+  linkHint?: string | null;
+}) {
   const [village, setVillage] = useState<Village>(initialVillage);
   const [mode, setMode] = useState<AdapterMode>(initialMode);
-  const [threshold, setThreshold] = useState<number>(THRESHOLDS.bangladesh);
-  const [capacitated, setCapacitated] = useState(true);
+  const [threshold, setThreshold] = useState<number>(initial.threshold);
+  const [capacitated, setCapacitated] = useState(initial.capacitated);
   const [dropMode, setDropMode] = useState(false);
-  const [added, setAdded] = useState<Well[]>([]);
+  const [added, setAdded] = useState<Well[]>(initial.added);
   const [selected, setSelected] = useState<number | null>(null);
   const [osm, setOsm] = useState<OsmStatus>({ kind: "idle" });
   const [mapFailed, setMapFailed] = useState(false);
+  // The field worker's own wells replace the sample wells until cleared. Not in the URL.
+  const [imported, setImported] = useState<{ wells: Well[]; file: string } | null>(null);
+  const [copy, setCopy] = useState<CopyStatus>({ kind: "idle" });
+  const [showLinkHint, setShowLinkHint] = useState(linkHint !== null);
 
+  const baseWells = imported?.wells ?? village.wells;
   const prep = useMemo(() => prepareVillage(village), [village]);
-  const wells = useMemo(() => [...village.wells, ...added], [village, added]);
+  const wells = useMemo(() => [...baseWells, ...added], [baseWells, added]);
   const solution = useMemo(() => solve(prep, wells, { threshold, capacitated }), [prep, wells, threshold, capacitated]);
-  const baseline = useMemo(() => solve(prep, village.wells, { threshold, capacitated }), [prep, village, threshold, capacitated]);
+  const baseline = useMemo(() => solve(prep, baseWells, { threshold, capacitated }), [prep, baseWells, threshold, capacitated]);
+
+  // Keep the address bar on the plan without a navigation, so the link can be shared.
+  // The default plan keeps a clean /play address.
+  const search = plannerSearch({ threshold, capacitated, added });
+  const isDefault = search === plannerSearch(DEFAULT_PLANNER_STATE);
+  useEffect(() => {
+    const target = isDefault ? "" : search;
+    if (window.location.search === target) return;
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${target}`);
+    setCopy({ kind: "idle" });
+  }, [search, isDefault]);
+
+  async function copyLink() {
+    const url = `${window.location.origin}${window.location.pathname}${search}`;
+    try {
+      if (!navigator.clipboard) throw new Error("no clipboard");
+      await navigator.clipboard.writeText(url);
+      setCopy({ kind: "copied" });
+    } catch {
+      setCopy({ kind: "manual", url });
+    }
+  }
+
   const route = useMemo(
     () => (selected === null ? undefined : routeFor(prep, wells, solution.assign[selected], selected)),
     [prep, wells, solution, selected]
@@ -76,8 +123,21 @@ export function Planner({ initialVillage, mode: initialMode }: { initialVillage:
 
   function resetAll() {
     backToSample();
+    setImported(null);
     setAdded([]);
     setDropMode(false);
+  }
+
+  function applyImportedWells(next: Well[], file: string) {
+    setImported({ wells: next, file });
+    setSelected(null);
+    setAdded([]);
+  }
+
+  function clearImported() {
+    setImported(null);
+    setSelected(null);
+    setAdded([]);
   }
 
   const k = solution.kpis;
@@ -161,6 +221,31 @@ export function Planner({ initialVillage, mode: initialMode }: { initialVillage:
                 <RotateCcw />
               </Button>
             </div>
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <Button variant="ghost" size="sm" className="w-full" onClick={copyLink}>
+                {copy.kind === "copied" ? <Check /> : <Link2 />}
+                {copy.kind === "copied" ? "Link copied" : "Copy link to this plan"}
+              </Button>
+              {copy.kind === "manual" && (
+                <>
+                  <p className="text-xs text-muted-foreground">This browser blocked the clipboard. Copy the link from here:</p>
+                  <Input readOnly value={copy.url} onFocus={(e) => e.currentTarget.select()} aria-label="Link to this plan" />
+                </>
+              )}
+              {imported && (
+                <p className="text-xs text-muted-foreground">
+                  The link carries the limit, the cap and your deep wells. Imported wells stay in this browser.
+                </p>
+              )}
+              {showLinkHint && linkHint && (
+                <p className="text-xs text-warn">
+                  {linkHint}{" "}
+                  <button type="button" className="underline underline-offset-2" onClick={() => setShowLinkHint(false)}>
+                    Dismiss
+                  </button>
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -170,8 +255,9 @@ export function Planner({ initialVillage, mode: initialMode }: { initialVillage:
           </CardHeader>
           <CardContent className="space-y-2 text-sm leading-relaxed">
             <p>
-              {fmtPeople(k.people)} people in {k.households} households. {k.safeWells - added.length} of {village.wells.length} tested wells pass
-              at {threshold} µg/L{village.wells.length > 0 ? " (sample test values)" : ""}.
+              {fmtPeople(k.people)} people in {k.households} households. {k.safeWells - added.length} of {baseWells.length} tested wells pass
+              at {threshold} µg/L
+              {baseWells.length > 0 ? (imported ? ` (imported test values from ${imported.file})` : " (sample test values)") : ""}.
             </p>
             <p>
               <span className={k.farPeople > 0 ? "font-semibold text-bad" : "font-semibold text-ok"}>{fmtPeople(k.farPeople)} people</span> live
@@ -188,7 +274,9 @@ export function Planner({ initialVillage, mode: initialMode }: { initialVillage:
                 <strong className="text-ok">{fmtPeople(k.farPeople)}</strong>.
               </p>
             )}
-            <p className="border-t border-border pt-2 text-xs text-muted-foreground">{sourceLine(mode, village)}</p>
+            <p className="border-t border-border pt-2 text-xs text-muted-foreground">
+              {sourceLine(mode, village, { importedWells: imported !== null })}
+            </p>
           </CardContent>
         </Card>
 
@@ -219,7 +307,14 @@ export function Planner({ initialVillage, mode: initialMode }: { initialVillage:
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {village.source === "sample" ? (
+            {osm.kind === "error" ? (
+              <ErrorState
+                title={osm.code === "upstream_timeout" ? "OpenStreetMap took too long" : "OpenStreetMap layout not loaded"}
+                hint={`${osm.hint} The sample village stays on the map meanwhile.`}
+                retryLabel="Ask Overpass again"
+                onRetry={loadOsm}
+              />
+            ) : village.source === "sample" ? (
               <Button variant="outline" className="w-full" onClick={loadOsm} disabled={osm.kind === "loading"}>
                 <MapIcon /> {osm.kind === "loading" ? "Asking Overpass for buildings" : "Load OSM buildings and paths"}
               </Button>
@@ -233,29 +328,32 @@ export function Planner({ initialVillage, mode: initialMode }: { initialVillage:
                 {osm.buildings} buildings and {osm.ways} walkable ways from OpenStreetMap.
               </p>
             )}
-            {osm.kind === "error" && (
-              <p className={cn("text-xs", osm.code === "upstream_timeout" ? "text-warn" : "text-bad")}>{osm.hint}</p>
-            )}
+            <WellsImport
+              origin={village.origin}
+              importedFrom={imported?.file ?? null}
+              onWells={applyImportedWells}
+              onClear={clearImported}
+              exportCsv={() => exportAssignmentsCsv(village, wells, solution)}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Wells</CardTitle>
+            {imported && <CardDescription>Imported test values from {imported.file}, not sample data.</CardDescription>}
           </CardHeader>
           <CardContent>
             {wells.length === 0 ? (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>No wells yet. Click the map to add one, or reset to the sample village.</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => setDropMode(true)}>
-                    <Crosshair /> Drop a deep well
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={resetAll}>
-                    <RotateCcw /> Reset to the sample village
-                  </Button>
-                </div>
-              </div>
+              <EmptyState
+                title="No wells yet"
+                hint="Click the map to drill a deep well, or go back to the sample village and its 12 tested wells."
+                actionLabel="Drop a deep well"
+                actionIcon={<Crosshair />}
+                onAction={() => setDropMode(true)}
+                secondaryLabel="Reset to the sample village"
+                onSecondary={resetAll}
+              />
             ) : (
             <ul className="divide-y divide-border text-sm">
               {wells.map((w) => {
