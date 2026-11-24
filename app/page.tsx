@@ -1,34 +1,72 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { seed } from "@/lib/data";
+import Link from "next/link";
+import { SceneSlot } from "@/components/scene-slot";
+import { StoryScroll } from "@/components/story-scroll";
 
-// TEMPLATE: this page must be rewritten with the idea's real copy at scaffold
-// time: hero with the product one-liner and ONE primary CTA, 2-3 product
-// sections, footer. Use the shadcn primitives in components/ui; never bare
-// unstyled HTML controls. No template copy may survive.
+// L3 editorial: one centered column at max-w-prose, magazine order. Kicker, display
+// headline, standfirst, inline figure, the live story with its CTA mid-article, a coda.
 export default function Home() {
   return (
-    <div className="space-y-16 py-10">
-      <section className="mx-auto max-w-2xl space-y-6 text-center">
-        <Badge variant="outline">TEMPLATE</Badge>
-        <h1 className="text-4xl font-bold tracking-tight">Template</h1>
-        <p className="text-lg text-muted-foreground">
-          Warm-start scaffold. If you can read this in a shipped product, the scaffold step failed.
+    <article className="mx-auto max-w-prose px-5 pb-24 pt-12">
+      <p className="puteal-wipe text-xs font-medium uppercase tracking-[0.2em] text-primary">
+        SDG 6.1 · Arsenic in Bangladesh&apos;s tubewells
+      </p>
+      <h1 className="puteal-wipe puteal-wipe-2 mt-4 text-4xl font-semibold leading-[1.05] sm:text-5xl">
+        The safe well is usually next door. The hard part is knowing which one.
+      </h1>
+      <p className="puteal-wipe puteal-wipe-3 mt-6 text-lg leading-relaxed text-muted-foreground">
+        About half of the tubewells tested in Bangladesh carry more arsenic than the WHO guideline allows. The cheapest fix is a
+        short walk to a neighbour&apos;s safe pump, yet families rarely switch: nobody tells them which pump, and the good ones get
+        crowded. Puteal matches every household to a safe well along real footpaths, keeps each pump under its load, and shows where
+        one new deep well would bring the most people back within reach.
+      </p>
+
+      <figure className="mt-10">
+        <div className="overflow-hidden rounded-md border border-border border-t-edge bg-card">
+          <SceneSlot
+            n={1}
+            alt="A field worker paints the spout of a tubewell red while a family carries water pots along a footpath toward a pump marked green"
+            width={960}
+            height={640}
+          />
+        </div>
+        <figcaption className="mt-2 text-sm text-muted-foreground">
+          Well switching: red spouts for wells over the limit, green for the ones a family can walk to.
+        </figcaption>
+      </figure>
+
+      <p className="mt-10 text-[1.0625rem] leading-relaxed">
+        Scroll on and the plan below follows the story of one sample village, Charpara. Every number in the text is computed live by
+        the same engine that runs the planner: a walking graph over the village footpaths, shortest paths from every safe well, and a
+        capacity cap on every pump.
+      </p>
+
+      <StoryScroll />
+
+      <section className="mt-16 border-t border-border pt-12">
+        <h2 className="text-2xl font-semibold sm:text-3xl">A card for every door</h2>
+        <p className="mt-4 text-[1.0625rem] leading-relaxed">
+          A plan only helps if it leaves the laptop. In the planner, click any household and Puteal prints a route card: the well to
+          use, its test result, the distance along the path and the walk in minutes. A field worker or a student volunteer can hand it
+          over at the door, the same day the spouts get painted.
         </p>
-        <Button size="lg">Primary CTA</Button>
+        <figure className="mt-8">
+          <div className="overflow-hidden rounded-md border border-border border-t-edge bg-card">
+            <SceneSlot
+              n={2}
+              alt="A hand holds a printed route card showing a footpath from a house to a green-marked well, with the distance written beside it"
+              width={960}
+              height={640}
+            />
+          </div>
+        </figure>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Method, assumptions and sources live in the{" "}
+          <Link href="/notes" className="text-primary underline decoration-primary/50 underline-offset-4 hover:decoration-primary">
+            method notes
+          </Link>
+          .
+        </p>
       </section>
-      <section className="grid gap-4 sm:grid-cols-2">
-        {seed.map((s) => (
-          <Card key={s.id}>
-            <CardHeader>
-              <CardTitle>{s.name}</CardTitle>
-              <CardDescription>Replace with a real feature card.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">Seed-driven content.</CardContent>
-          </Card>
-        ))}
-      </section>
-    </div>
+    </article>
   );
 }
