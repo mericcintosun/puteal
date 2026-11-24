@@ -20,7 +20,7 @@ The people who feel this are the field workers and student volunteers who paint 
 
 Puteal turns a village into a walking graph and answers the question for every door.
 
-1. **Walking graph.** Footpaths are cut into 25 m segments; houses and wells join at the nearest node. In the planner, the layout can come live from OpenStreetMap through the Overpass API.
+1. **Walking graph.** Footpaths are cut into 25 m segments; houses and wells join at the nearest node. In live mode the houses and footpaths come from OpenStreetMap through the Overpass API.
 2. **Capacity-aware assignment.** Dijkstra runs from every well that passes the chosen limit. Households are then served in order of regret (whoever loses most by being bumped picks first), and each takes the nearest safe pump that still has room. A pump in the sample is capped at 80 to 200 people.
 3. **The limit is a switch.** Flip between Bangladesh's 50 µg/L and the WHO's 10 µg/L and watch wells turn red and the walks redistribute.
 4. **The next deep well.** Click any spot to drill a deep well. The count of people beyond 500 m updates immediately, so a union council can compare sites before spending.
@@ -28,13 +28,36 @@ Puteal turns a village into a walking graph and answers the question for every d
 
 The home page tells this as a five-chapter scroll story on one sample village, Charpara. Every number in the text is computed by the engine, not typed in. The `/play` route is the same engine with every control open, and `/notes` holds the method and sources.
 
-**Honest about data:** the Charpara layout and all arsenic values are sample data. We did not find a public per-well dataset to ship. The buildings and paths loaded in the planner are real OpenStreetMap data.
+**Honest about data:** all arsenic values are sample data, and so is the Charpara layout. We did not find a public per-well dataset to ship. In live mode the buildings and paths are real OpenStreetMap data, and a line under each readout says which layout you are looking at.
+
+## Live mode
+
+Set `ADAPTER_MODE=real` and the village layout comes from live OpenStreetMap: the server asks the public Overpass API for every building and walkable way in a 1.3 km square around the sample village, turns each building into a household of 4.2 people, and runs the same engine on it. The real adapter needs no key, so nothing else has to be configured. The wells, their sample arsenic values and the six hamlet names stay sample data; each mapped building joins its nearest sample hamlet.
+
+The real adapter answers from the first source that works:
+
+1. the server's own copy, if it is younger than 10 minutes;
+2. a live Overpass call, 8 seconds per try with one retry;
+3. the snapshot `fixtures/osm-charpara.json`, saved by `npm run proof`;
+4. the sample village Charpara.
+
+With `ADAPTER_MODE=fake` (or unset) everything runs on the sample village. In either mode the planner's "Load OSM buildings and paths" button asks the server for the live layout through `GET /api/village?live=1`.
+
+Last proof of the live path:
+
+<!-- PROOF:BEGIN overpass -->
+Not run in this build: Overpass did not answer (upstream_error).
+<!-- PROOF:END overpass -->
+
+<!-- PROOF:BEGIN engine -->
+Not run in this build: no OSM layout available.
+<!-- PROOF:END engine -->
 
 ## Required and sponsor tech
 
 There is no sponsor SDK for this hackathon. The external services Puteal calls are all public and keyless:
 
-- **Overpass API** (`lib/overpass.ts`): fetches buildings and walkable ways for the village bounding box, converts them to the engine's meter frame and caches the response in localStorage.
+- **Overpass API** (`lib/adapter.real.ts`, `lib/osm.ts`): the server fetches buildings and walkable ways for the village bounding box, checks the response with zod and converts it to the engine's meter frame.
 - **OpenStreetMap raster tiles** through **MapLibre GL JS** (`components/village-map.tsx`).
 
 ## Tech stack
@@ -46,6 +69,8 @@ There is no sponsor SDK for this hackathon. The external services Puteal calls a
 - Lenis 1 and Motion 14 for the scroll story
 - Tailwind CSS 4 with shadcn-style components
 - A typed data adapter (`lib/adapter.ts`) behind the pages and two JSON routes, `GET /api/village` and `POST /api/solve`
+- zod 3 for request and Overpass response validation
+- Vitest 3 for tests, tsx 4 for the proof script
 - Hosted on Vercel
 
 ## Quickstart
@@ -56,13 +81,18 @@ npm run dev
 # open http://localhost:3000
 ```
 
-No environment variables are required. `.env.example` lists two optional ones: `ADAPTER_MODE` (default `fake`, which serves the sample village) and `NEXT_PUBLIC_OVERPASS_URL`, for pointing the planner at an Overpass mirror.
+No environment variables are required. `.env.example` lists two optional ones: `ADAPTER_MODE` (default `fake`, which serves the sample village; `real` turns on live mode) and `OVERPASS_URL`, for pointing the server at another Overpass mirror.
+
+```bash
+npm test        # vitest: engine snapshot and invariants, OSM parser, request schemas
+npm run proof   # one live Overpass call, saves the snapshot, rewrites the proof lines above
+```
 
 `npm run seed` writes the sample village to `fixtures/charpara.seed.json` (Node 22.6 or later, for type stripping).
 
 ## What we would build next
 
-- Move the solver into a Web Worker so OSM villages with thousands of buildings stay smooth.
+- Move the solver into a Web Worker so OSM villages with thousands of buildings stay smooth (live mode keeps the nearest 700 buildings for now).
 - Replace the greedy pass with an exact min-cost flow and compare the two on real villages.
 - CSV import for a field team's own test results, plus an "edit this well" panel.
 - Suggest the best deep-well site automatically by scoring every graph node.

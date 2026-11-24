@@ -74,7 +74,7 @@ All three are linked from the header nav (`components/site-header.tsx`).
 
 1. **Verify the live OSM path (1.5 h).** Run `/play`, press "Load OSM buildings and paths". The default bbox centres on 23.7815 N, 90.6395 E (Araihazar area, unverified). If buildings are sparse, try nearby village centres and update `SAMPLE_VILLAGE.origin` so the sample wells land on built-up ground. Save the chosen response as a static fallback JSON in `public/` and load it when Overpass fails. Done = the button reliably fills the map with real buildings and the readout updates.
 2. **Web Worker solver (1.5 h).** Move `prepareVillage` + `solve` into a worker for OSM villages; keep the main-thread path for the story. Done = dropping a well on a 700-building village responds in under 200 ms with no jank.
-3. **Well editing and CSV import (2 h).** Click a well to edit its arsenic value with the `Input` primitive; a CSV import (`name,lat,lon,arsenic,depth_m,capacity`) replaces the sample wells. Label sample values "sample" everywhere they show. Done = a field team can paste their own results and every number reflects them.
+3. **Well editing and CSV import (2 h).** Click a well to edit its arsenic value with the `Input` primitive; a CSV import (`name,lat,lon,arsenic,depth_m,capacity`) replaces the sample wells. Label sample values "sample" everywhere they show. Done = a field team can load its own results and every number reflects them.
 4. **Wow moment polish (1.5 h, schedule on day 2 morning).** In chapter 5 and on `/play`, animate the far-people count from old to new value and draw a short delta line ("340 to 85"-style, with real numbers). Rehearse: drop a deep well at the red-dashed cluster, lines redistribute, count drops. Done = the drop feels instant and the delta is obvious from across a room.
 5. **Kit signatures 2 and 3 (1.5 h).** As described above. Respect reduced motion and keep server HTML readable.
 6. **Route card polish (1 h).** Small route sketch on the card (reuse `VillagePlan` with the route only), Bangla line optional. Done = printed card is readable in black and white.
@@ -134,3 +134,58 @@ Demo flow to rehearse (90 s): open `/`, scroll chapter 1 (village, red and green
 - `lib/engine.ts:221` and similar section comments use decorative runs of hyphens (`/* ---------- assignment ---------- */`). Not touched this phase, since the engine was out of scope; swap them for plain comments in Phase 2.
 
 **Next best step.** Phase 2: live OSM path with a static fallback JSON in `public/`, the solver in a Web Worker, well editing and CSV import, all behind `realAdapter`; then `npm run proof` and `.farm-live.json`.
+
+## Phase 2: the walking engine runs on real OpenStreetMap
+
+**Goal.** DEMO.md step 5 becomes real: with `ADAPTER_MODE=real` the household layout and footpaths come from live OpenStreetMap through a server-side Overpass call, the capacity-aware Dijkstra in `lib/engine.ts` runs on it, and the chapter 5 deep-well drop lowers the "people over 500 m" count on real streets.
+
+**Status.** Slices 1 to 4 written. Slice 5 (Web Worker) skipped to stay inside the budget; the solver still runs on the main thread, and live mode keeps at most 700 buildings (`CONFIG.maxBuildings`). Nothing was built, tested or run by the agent.
+
+**Which mechanism went real.** One: the live OSM village (buildings become households, walkable ways become footpaths) feeding the existing engine, through `realAdapter` behind the selector.
+
+**What stays fixtures.** Well arsenic values and the 12 wells (no public per-well test dataset was found), `PROPOSED_DEEP_WELL`, the 4.2 people per household assumption, the hamlet list (each OSM building joins its nearest sample hamlet so the story's hamlet names still hold), and the origin. `lib/data/seed.ts` is unchanged.
+
+**Live-mode contract.** `.farm-live.json` is `{ "requiredEnv": [], "optionalEnv": ["OVERPASS_URL"] }`. `requiredEnv` is empty because Overpass is a public, keyless API, so the real adapter needs no secret and the live site can switch to `ADAPTER_MODE=real` on its own. `.gitignore` gained `!.farm-live.json` so the contract file can be committed despite the `.farm-*` rule.
+
+**Decisions.**
+- `lib/config.ts` is the only reader of `OVERPASS_URL` and `ADAPTER_MODE`. `lib/brand-files.ts` still reads `NEXT_PUBLIC_BRAND_FILES` (pre-existing, set by `next.config.ts`, not a secret).
+- `lib/overpass.ts` (planner button): the smaller change was to stop calling Overpass from the browser. It now calls `GET /api/village?live=1`, so the client imports neither `CONFIG` nor `lib/osm.ts`, and no client file can reach `process.env`. The localStorage cache is gone; the server's module cache (10 minutes) replaces it. `getAdapter({ live: true })` returns the real adapter in any mode for that one query; `lib/adapter.ts` stays the only module that branches on the mode.
+- `Village` gained an optional `layoutTier` ("live", "snapshot", "fallback"). The real adapter sets it together with `source` and `place`. The source line (`lib/source-line.ts`) reads `mode`, `village.source` and `layoutTier`, never `place` text.
+- Cache: whatever tier answered is cached for `CONFIG.cacheTtlMs`, fallbacks included, so a down Overpass does not cost 16 seconds on every request.
+- Retry: `fetchOverpassElements` makes 1 + `CONFIG.overpassRetries` attempts (capped at 2 in code); a parse failure is not retried.
+- Pages stay statically rendered. In real mode, the layout is fetched when the page is prerendered at build time (live, else snapshot, else sample) and stays until the next deploy; `/api/village` is dynamic and answers per request. No `revalidate` was added; see Open questions.
+- The snapshot holds slimmed Overpass elements (only `building`, `highway`, `name` tags, 6-decimal coordinates) and is parsed with the same `overpassResponseSchema`.
+- `/api/village` validates its query (`live` must be "0" or "1") with `villageQuerySchema` before anything else; `/api/solve` uses `solveRequestSchema`. Failures are `{ ok: false, error, hint }` with status from `statusFor` in `lib/errors.ts`.
+- `PutealAdapter` moved to `lib/types.ts`; `lib/adapter.ts` re-exports it and `fakeAdapter`. `fakeAdapter` moved unchanged to `lib/adapter.fake.ts`.
+- Story copy on `/`, the home standfirst and `/notes` switch wording on `village.source` so the OSM layout is not called a sample village. The chapter 5 drop code is unchanged and has no branch on mode.
+- The decorative hyphen comments in `lib/engine.ts` (Phase 1 open item) became plain comments.
+- `scripts/proof.ts` silences `console.info` so stdout carries one line per proof; the adapter's `[core]` step logs still show on the server.
+
+**Failed attempts.** None.
+
+**Files changed.**
+- New: `lib/config.ts`, `lib/errors.ts`, `lib/schemas.ts`, `lib/osm.ts`, `lib/adapter.fake.ts`, `lib/adapter.real.ts`, `lib/source-line.ts`, `.farm-live.json`, `vitest.config.ts`, `lib/engine.test.ts`, `lib/osm.test.ts`, `lib/schemas.test.ts`, `fixtures/osm-mini.json`, `scripts/proof.ts`, `.farm-commits.json`
+- Edited: `lib/adapter.ts`, `lib/overpass.ts`, `lib/types.ts`, `lib/engine.ts` (comments only), `next.config.ts`, `.env.example`, `.gitignore`, `package.json`, `app/api/solve/route.ts`, `app/api/village/route.ts`, `components/planner.tsx`, `components/story-scroll.tsx`, `app/page.tsx`, `app/play/page.tsx`, `app/notes/page.tsx`, `README.md`, `DEMO.md`, `CLAUDE.md`, `HANDOFF.md`
+
+**Commands run.** None, the agent has no shell.
+
+**Open questions.**
+- Should `/` and `/play` revalidate (for example every 10 minutes) so a build that fell back to the sample can pick up the live layout later? Left static for predictability; the committed snapshot covers most of the gap.
+- The centre point (23.7815 N, 90.6395 E) is still unverified on the ground. If `npm run proof` reports fewer than 5 buildings or a sparse layout, move `SAMPLE_VILLAGE.origin` (a seed change, so a deliberate decision).
+- With up to 700 buildings at 4.2 people each and the 12 sample wells, many pumps will be full in live mode; chapter text still reads correctly but the far counts are larger than on the sample.
+
+**Unmet or unverified items (evidence).**
+- Build, `npm test` and `npm run proof`: not run by the agent. The engine snapshot file `lib/__snapshots__/engine.test.ts.snap` is written on the first `npm test` run and should be committed.
+- Slice 5, Web Worker: not done (`components/planner.tsx` still calls `solve` in `useMemo`).
+- `lib/overpass.ts` does not import `lib/osm.ts` or `CONFIG` as the spec first suggested; it calls `/api/village?live=1` instead (the option the spec allowed), see `lib/overpass.ts:1`.
+- Engine invariants in `lib/engine.test.ts` (proposed well never raises the far count, WHO far count not below Bangladesh) hold by reasoning on the sample, not by a proof for every village; the greedy pass does not guarantee them in general.
+- DEMO.md closing number lives in the `demo-closing` marker block and is written by `npm run proof`; until then it reads "Not run yet".
+- Live spot check on https://puteal.vercel.app with `ADAPTER_MODE=real`: runner and human task.
+
+**Manual checklist.**
+- Confirm the builder is a student (13 or over) before submitting.
+- After `npm run proof`, commit `fixtures/osm-charpara.json` and the rewritten README.md and DEMO.md blocks.
+- Set `ADAPTER_MODE=real` on Vercel production, redeploy, check that the source line names OpenStreetMap, that the chapter 5 drop lowers the far count, and that `/api/village` answers `mode: "real"`.
+- Set `ADAPTER_MODE=fake` once and check the sample line shows.
+
+**Next best step.** Phase 3: well editing and CSV import behind the adapter, then the Web Worker if the live layout feels slow on a phone.
