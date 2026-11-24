@@ -11,7 +11,8 @@ export type { PutealAdapter };
 export { fakeAdapter };
 
 /**
- * Returns the real adapter when ADAPTER_MODE is "real", the sample adapter otherwise.
+ * Returns the real adapter unless ADAPTER_MODE is "fake" (the real adapter is the default
+ * and carries its own snapshot and sample fallbacks).
  * `live: true` asks for the real adapter in any mode; only the planner's
  * "Load OSM buildings and paths" button uses it, through GET /api/village?live=1.
  */

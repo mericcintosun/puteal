@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  * Reading searchParams makes this page render per request, so a cold server in real mode
  * would wait on Overpass. The page gives the adapter this long, then serves the sample.
  */
-const VILLAGE_BUDGET_MS = 4000;
+const VILLAGE_BUDGET_MS = 8000;
 
 /**
  * Demo step 6 reads the village here. If the adapter throws or runs past the budget, the
@@ -29,7 +29,9 @@ async function loadVillage(): Promise<{ village: Village; mode: AdapterMode }> {
     const village = await Promise.race([adapter.getVillage(), budget]);
     return { village, mode: adapter.mode };
   } catch {
-    return { village: await fakeAdapter.getVillage(), mode: "fake" };
+    // Keep the adapter's mode, so in real mode the source line says the live layout was
+    // unavailable rather than implying the sample village was chosen.
+    return { village: await fakeAdapter.getVillage(), mode: adapter.mode };
   } finally {
     if (timer) clearTimeout(timer);
   }

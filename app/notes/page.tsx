@@ -6,6 +6,9 @@ import { CONFIG } from "@/lib/config";
 import { DETOUR, FAR_METERS, PEOPLE_PER_HOUSEHOLD, PROPOSED_DEEP_WELL, THRESHOLDS, WALK_M_PER_MIN, type Village } from "@/lib/data";
 import { buildGraph, fmtMeters, fmtPeople, prepareVillage, solve } from "@/lib/engine";
 
+// Same village as the story, rebuilt hourly (see app/page.tsx).
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: "Method and sources",
   description: "How Puteal builds the walking graph, assigns households to wells under a capacity cap, and what is real versus sample data.",
@@ -100,7 +103,7 @@ function buildSections(v: Village): { summary: string; body: React.ReactNode }[]
             : "Real: the engine and the OpenStreetMap basemap. When the site runs in live mode, or when you press the button in the planner, the houses and paths come from OpenStreetMap buildings and walkable ways, fetched by our server from the public Overpass API."}
         </p>
         <p>
-          The live layout answers from the first source that works: a live Overpass call ({CONFIG.overpassTimeoutMs / 1000} seconds per try, {CONFIG.overpassRetries} retry), then a saved
+          The live layout answers from the first source that works: a live Overpass call ({CONFIG.overpassTimeoutMs / 1000} seconds per try across {CONFIG.overpassUrls.length > 1 ? `${CONFIG.overpassUrls.length} public mirrors` : "one server with one retry"}, {CONFIG.overpassBudgetMs / 1000} seconds in all), then a saved
           OpenStreetMap snapshot shipped with the site, then the sample village Charpara. The line under each readout says which one
           you are looking at.
         </p>

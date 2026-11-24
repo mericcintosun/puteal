@@ -7,6 +7,10 @@ import { StoryHero, StoryScroll } from "@/components/story-scroll";
 import { fakeAdapter, getAdapter } from "@/lib/adapter";
 import type { AdapterMode, Village } from "@/lib/types";
 
+// The story is rendered at build time from the real adapter. Rebuild it hourly so a build
+// that could not reach Overpass does not keep the sample layout until the next deploy.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: { absolute: "Puteal: safe wells for every household" },
 };
