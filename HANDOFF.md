@@ -254,3 +254,99 @@ Other decisions.
 - Confirm the builder is a student aged 13 or over before submitting.
 
 **Next best step.** Phase 4: bounty and landing polish.
+
+## Phase 4 start
+
+- Current state: story, planner and notes work on the sample village and live OSM, with URL state, CSV in and out and the state triad; the header nav has no mobile disclosure and many demo-path controls are 32 to 36px tall.
+- Phase goal: responsive audit and a below-md nav, the SDG 6.1 summary card on `/play` (DEMO step 8), DELIVERY.md, README and metadata polish, then the web hygiene sweep and SECURITY.md.
+- Files to touch: `components/site-header.tsx`, `components/planner.tsx`, new `components/sdg-card.tsx`, `components/route-card.tsx`, `components/wells-import.tsx`, `components/story-scroll.tsx`, `components/states.tsx`, `app/layout.tsx`, `app/page.tsx`, `app/notes/page.tsx`, `app/globals.css`, `DEMO.md`, `README.md`, new `DELIVERY.md`, new `SECURITY.md`, `HANDOFF.md`, `.farm-commits.json`.
+
+## Phase 4: judge-facing polish, second wow, security pass
+
+**Goal.** Make every demo route usable at 360, 768 and 1280 px with a mobile nav, add the SDG 6.1 summary card on `/play` as DEMO step 8, write the submission surface (DELIVERY.md, README, metadata, landing copy), then sweep web hygiene and write SECURITY.md.
+
+**Status.** Slices A1, A2, A3 and B1 written. Nothing was cut. Nothing was built, tested or run by the agent.
+
+**No bounty.** The event has no `sponsor-bounty` track, so no sponsor integration was built; README keeps an empty bounty table and says so in one sentence.
+
+**Contracts.** `contracts/` does not exist, so the contract front was skipped: no `lib/config.ts` address work and no REDEPLOY line.
+
+### Responsive audit (A1)
+
+| File | Element | Rule | Result |
+| --- | --- | --- | --- |
+| `components/site-header.tsx` | nav links `py-1.5` (about 32px), no small-screen menu | 44px target, below-md disclosure | fixed: `md:hidden` button (`min-h-11 min-w-11`, `aria-expanded`, `aria-controls`), panel with all three links at `min-h-11`, inline list `hidden md:flex`, closes on route change and Escape |
+| `components/story-scroll.tsx` | chapter jump buttons `h-7` | 44px target | fixed: `min-h-11`; the list is one row with `overflow-x-auto` so five 44px buttons do not stack inside the sticky pane |
+| `components/story-scroll.tsx` | chapter 5 Undo, Clear, planner link (`h-8`) | 44px target | fixed: `min-h-11`; the long link may wrap (`whitespace-normal`) |
+| `components/planner.tsx` | limit and crowding toggles (`h-8`), drop button (`h-9`), reset icon (`h-9 w-9`), copy link, Dismiss, OSM buttons | 44px target | fixed: `min-h-11` or `size-11` |
+| `components/planner.tsx` | grid children could be widened by the long share URL input | `min-w-0` on flex and grid children | fixed: `grid-cols-1` below lg, `min-w-0` on both columns |
+| `components/planner.tsx` | imported file name in the readout and Wells card, well names | long strings | fixed: `break-words` plus `title`; well names keep `truncate` and gain `title` |
+| `components/route-card.tsx` | close button `h-7 w-7`, Print card `h-8` | 44px target | fixed: `size-11`, `min-h-11`; title and description `break-words`, header text `min-w-0` |
+| `components/wells-import.tsx` | Import CSV, example, export, sample wells buttons (`h-8`) | 44px target | fixed: `min-h-11` |
+| `components/wells-import.tsx` | rejected-rows list, file name in the status line | wide block, long strings | fixed: list `max-h-40 overflow-y-auto break-words` with `title` per row; status `break-words` with `title` |
+| `components/states.tsx` | ErrorState and EmptyState buttons (`h-8`), titles carrying file names | 44px target, long strings | fixed: `[&_button]:min-h-11` and `[&_a]:min-h-11`; title `break-words` with `title` |
+| `app/not-found.tsx` | single button `h-9` | 44px target | fixed: `min-h-11`, plus a planner link |
+| `app/error.tsx`, `app/play/error.tsx`, `app/notes/error.tsx` | link buttons inside ErrorState | 44px target | fixed through `components/states.tsx` |
+| `app/notes/page.tsx` | source list with URLs | long strings | fixed: `break-words` on the list; `<details>` summaries are already about 48px |
+| `app/page.tsx` | inline `/notes` link in the coda | 44px target | parked: an inline link inside a sentence, not a demo-path control |
+| `components/village-map.tsx`, `components/village-plan.tsx` | map and SVG | fixed widths | clean: `w-full` and `h-full`, no fixed width above 360px |
+| `app/play/page.tsx` | page shell | widths | clean: `max-w-6xl px-5`, intro `max-w-prose` |
+
+Error and not-found boundaries: `app/error.tsx`, `app/play/error.tsx`, `app/notes/error.tsx` and `app/not-found.tsx` are segment boundaries, not `global-error.tsx`, so they render inside `app/layout.tsx` and the header and footer stay.
+
+### Decisions
+
+- `components/sdg-card.tsx` takes the planner's existing `baseline` (same village, limit and pump rule, no reader deep wells) and `solution`, and adds one small pure helper, `sdgSummary`, that only subtracts KPIs. It imports `lib/engine`, `lib/source-line`, `lib/types` (types only), `components/states`, `components/ui/*`, `lucide-react` and `motion/react`; all existed already.
+- Card states: loading (Skeleton) while "Load OSM" is in flight, error (ErrorState) if a summary figure is not a finite number, empty (EmptyState with "Drop a deep well") when no deep well is dropped; the map and readout stay on screen in every state.
+- The count uses `animate` from `motion/react` with the M4 curve over 600ms, from the before number down to the after number; `useReducedMotion()` shows the final value at once. The final number is also in an `sr-only` span.
+- Print: two printable cards now share the planner. The route card carries `data-print-id="route"`, the SDG card `data-print-id="sdg"`. `app/globals.css` hides the SDG card in print unless its own button set `html[data-print="sdg"]` (removed on `afterprint`), and hides the route card when it is set. Ctrl+P keeps printing the route card as before.
+- Metadata: `metadataBase` is `https://puteal.vercel.app` (literal, no env read), title template `%s | Puteal`, default "Puteal: safe wells for every household", a 150 character description, `openGraph` and `twitter.card: summary_large_image`. The og:image comes from the `app/opengraph-image.tsx` file convention; `app/icon.svg` stays a file convention. No separate twitter image exists, so X falls back to og:image.
+- Landing: one added paragraph under the standfirst names the audience and SDG 6.1 and links to `#chapter-village` and `/play`. L3 column, the chapter 3 CTA and the wipe are unchanged.
+- `.env.example` documents `NEXT_PUBLIC_BRAND_FILES` as a commented-out line (public, written by `next.config.ts`); no new env var, `.farm-live.json` unchanged.
+- The Web Worker is still not built; README now says so in the stack list.
+
+### Part B grep results
+
+- Wallet: `eth_requestAccounts|eth_sign|personal_sign|ethereum|wallet|connect\(` (case-insensitive) over `app/`, `components/`, `lib/`: one hit, `components/story-scroll.tsx:81` `io.disconnect()`, an IntersectionObserver call. The wallet rules hold vacuously; no wallet footer added.
+- Secrets: `sk-|PRIVATE_KEY|api_key|apikey`, 64-hex and 80+ char base64 runs over `app/`, `components/`, `lib/`: no matches.
+- Env reads: `process.env.OVERPASS_URL` and `process.env.ADAPTER_MODE` (`lib/config.ts`), `process.env.NEXT_PUBLIC_BRAND_FILES` (`lib/brand-files.ts`, set by `next.config.ts`). All three are in `.env.example` now.
+- Links: no `target="_blank"` anywhere. `http://` only in `app/icon.svg` (the SVG XML namespace). External links in `/notes` are https.
+- Console: no `console.log` in `app/` or `components/` or `lib/`.
+- Vercel: no `useSearchParams`; `/play` reads `searchParams` on the server. File system: `lib/adapter.real.ts:106` reads the snapshot (read only, Node runtime), `next.config.ts` lists `public/brand` at build time, `lib/osm.test.ts` reads a fixture in tests. No writes outside `scripts/`, no edge runtime file.
+- Forms: CSV parsing stays in the browser (`components/wells-import.tsx`). `/api/solve` and `/api/village` validate with zod (`solveRequestSchema`, `villageQuerySchema`) and answer with the `lib/errors.ts` taxonomy; timeout and retry live in the real adapter. No gap found, nothing rewritten.
+- Sameness: dead hexes, banned keyframes, `backdrop-blur`, `--delay:`, `--d:` all clean. Six-digit hexes only in `app/globals.css`, `app/opengraph-image.tsx`, `app/icon.svg`. No em or en dash and no spaced double hyphen in the repo outside `node_modules`. Banned vocabulary: no match in the repo. One `@keyframes`, `puteal-wipe`, covered by the reduced-motion block. Exactly one `BrandMark` in the header, inside the brand link.
+
+### Failed attempts
+
+None.
+
+### Files changed
+
+- New: `components/sdg-card.tsx`, `DELIVERY.md`, `SECURITY.md`, `.farm-commits.json`
+- Edited: `components/site-header.tsx`, `components/planner.tsx`, `components/states.tsx`, `components/story-scroll.tsx`, `components/route-card.tsx`, `components/wells-import.tsx`, `app/layout.tsx`, `app/page.tsx`, `app/not-found.tsx`, `app/notes/page.tsx`, `app/globals.css`, `.env.example`, `DEMO.md`, `README.md`, `HANDOFF.md`
+- Untouched: `components/brand-mark.tsx`, `public/logo.svg`, `public/illustrations/*`, `lib/data.ts`, `lib/engine.ts`, `.farm-live.json`, `IDENTITY.md`
+
+### Commands run
+
+None, the agent has no shell.
+
+### Open questions
+
+- Lenis is mounted without its `anchors` option, so the new `#chapter-village` link on `/` uses the browser's own jump; Lenis picks the position up afterwards. If it feels abrupt, add `anchors: true` to the options in `components/smooth-scroll.tsx`.
+- `lib/engine.ts:4` still says the engine runs "next, inside a Web Worker". It describes a plan, not a shipped feature; left alone because the engine is out of scope.
+
+### Unmet or unverified items (evidence)
+
+- Build, `npm test`, `npm run proof`: not run by the agent. Risk spots for the build: `components/sdg-card.tsx` uses `animate(from, to, { ease, onUpdate })` and `useReducedMotion` from `motion/react`, and `components/site-header.tsx` imports `Menu` and `X` from `lucide-react`.
+- `scripts/proof.ts` only rewrites marker blocks (`writeBlock("DEMO.md", "demo-closing", ...)`) and does not parse step numbers, so step 8 cannot break it; not run.
+- Live checks at 360, 768 and 1280 px, the mobile menu, printing the SDG card, Lighthouse, view-source og:image: runner and human tasks.
+
+### Manual checklist
+
+- Open `/play?limit=10&cap=1&add=1255,185`: the SDG card shows before and after far counts, the sentence and the mean walk; press "Print summary" and check that only the card prints; then open a route card and Ctrl+P: only the route card prints.
+- At 360px, open the header menu, reach all three routes, and check the chapter rail scrolls sideways.
+- Confirm the builder is a student aged 13 or over, then work through DELIVERY.md.
+
+### Next best step
+
+Phase 5, the frontend pass: kit signatures 2 and 3 (parallax coda, sticky horizontal method strip), then a real-device check of the planner at 360px.
