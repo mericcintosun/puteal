@@ -171,25 +171,68 @@ export async function fetchOverpassElements(
 /** The box, query and parse options every caller shares. */
 export function osmPlan() {
   const box = bboxAround(SAMPLE_VILLAGE, CONFIG.halfSizeM);
-  const apiBox = bboxAround(SAMPLE_VILLAGE, CONFIG.osmApiHalfSizeM);
+  const apiUrls = CONFIG.osmApiUrl
+    ? [CONFIG.osmApiHalfSizeM, ...CONFIG.osmApiWiderHalfSizesM].map((m) =>
+        osmApiMapUrl(CONFIG.osmApiUrl as string, bboxAround(SAMPLE_VILLAGE, m)),
+      )
+    : [];
   return {
     box,
     query: buildOsmQuery(box),
-    apiUrl: CONFIG.osmApiUrl ? osmApiMapUrl(CONFIG.osmApiUrl, apiBox) : null,
+    /** The first (smallest) OSM API box, or null when the source is off. */
+    apiUrl: apiUrls[0] ?? null,
+    /** Every OSM API box, smallest first. */
+    apiUrls,
     parse: { center: box.center, maxBuildings: CONFIG.maxBuildings },
   };
 }
 
+const buildingCount = (els: OverpassElement[]) => els.filter((e) => e.tags?.building).length;
+
 /**
- * The same buildings and walkable ways from the OSM main API (`GET /api/0.6/map.json`), with
- * one retry after backoff on a 429, a 5xx, a timeout or a network failure. A 400 or 509 means
- * the box holds too many nodes or the caller is over its bandwidth share: final.
+ * The same buildings and walkable ways from the OSM main API (`GET /api/0.6/map.json`).
+ * Starts with a small box and widens it (CONFIG.osmApiWiderHalfSizesM) while the answer holds
+ * fewer than 5 buildings, since the area around the sample centre is thinly mapped. A 400
+ * (too many nodes) on a wider box stops the widening and keeps the last answer.
  */
 export async function fetchOsmApiElements(
   opts: OverpassOptions = {},
 ): Promise<{ elements: OverpassElement[]; ms: number; host: string }> {
-  const url = osmPlan().apiUrl;
-  if (!url) throw new PutealError("not_configured", "osm api: off");
+  const urls = osmPlan().apiUrls;
+  if (urls.length === 0) throw new PutealError("not_configured", "osm api: off");
+  const budgetMs = opts.budgetMs ?? CONFIG.overpassBudgetMs;
+  const started = Date.now();
+  let best: { elements: OverpassElement[]; ms: number; host: string } | null = null;
+  const notes: string[] = [];
+  for (const url of urls) {
+    const left = budgetMs - (Date.now() - started);
+    if (left < 1000 || opts.signal?.aborted) break;
+    try {
+      const r = await fetchOsmApiBox(url, { ...opts, budgetMs: left });
+      const n = buildingCount(r.elements);
+      log(`osm api box=${new URL(url).searchParams.get("bbox")} buildings=${n}`);
+      if (!best || n > buildingCount(best.elements)) best = { ...r, ms: Date.now() - started };
+      if (n >= 5) break;
+      notes.push(`${r.host} GET: ${n} buildings in bbox ${new URL(url).searchParams.get("bbox")}`);
+    } catch (e) {
+      notes.push(e instanceof Error ? e.message : String(e));
+      // A refused or failed wider box ends the widening; a failed first box ends it too.
+      break;
+    }
+  }
+  if (best) return best;
+  throw new PutealError("upstream_error", notes.join("; ") || "osm api: budget spent");
+}
+
+/**
+ * One OSM API box, with one retry after backoff on a 429, a 5xx, a timeout or a network
+ * failure. A 400 or 509 means the box holds too many nodes or the caller is over its
+ * bandwidth share: final.
+ */
+async function fetchOsmApiBox(
+  url: string,
+  opts: OverpassOptions = {},
+): Promise<{ elements: OverpassElement[]; ms: number; host: string }> {
   const host = new URL(url).host;
   const timeoutMs = opts.timeoutMs ?? CONFIG.overpassTimeoutMs;
   const budgetMs = opts.budgetMs ?? CONFIG.overpassBudgetMs;

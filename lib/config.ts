@@ -50,6 +50,13 @@ export const CONFIG = {
    * nearest maxBuildings anyway.
    */
   osmApiHalfSizeM: 450,
+  /**
+   * Wider boxes tried, in order, when the box before them holds fewer than 5 mapped
+   * buildings (rural Araihazar is thinly mapped: the 450 m box returned 0 buildings to the
+   * proof runner). Stops at the first box with enough buildings, or at a 400 (too many nodes).
+   * The largest box is about 0.0016 square degrees, far under the API's 0.25 limit.
+   */
+  osmApiWiderHalfSizesM: [1_200, 2_500],
   /** Half the side of the square box (in meters) fetched around the sample village centre. */
   halfSizeM: 650,
   /** Buildings kept, nearest to the centre first, so the browser solve stays quick. */

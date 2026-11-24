@@ -72,7 +72,7 @@ async function proveOverpass(): Promise<Layout | null> {
     fetched = await fetchOsmLayout({ timeoutMs: 30_000, budgetMs: 80_000 });
   } catch (e) {
     const tried = e instanceof Error && e.message !== codeOf(e) ? `: ${e.message}` : "";
-    const line = `Not run in this build: no OpenStreetMap source answered, neither an Overpass instance nor the OSM API (${codeOf(e)}${tried}).`;
+    const line = `Not run in this build: no OpenStreetMap source returned a usable layout (at least 5 buildings), neither an Overpass instance nor the OSM API (${codeOf(e)}${tried}).`;
     console.log(`proof overpass: ${line}`);
     await writeBlock("README.md", "overpass", line);
     return null;
@@ -102,8 +102,9 @@ async function proveOverpass(): Promise<Layout | null> {
   }
   const line =
     `Run on ${today}: OpenStreetMap (${host}) answered in ${ms} ms with ${village.households.length} buildings kept ` +
-    `(nearest ${CONFIG.maxBuildings} at most) and ${village.paths.length} walkable ways in a ${CONFIG.halfSizeM * 2} m square ` +
-    `around the sample village centre.${saved}`;
+    `(nearest ${CONFIG.maxBuildings} at most) and ${village.paths.length} walkable ways around the sample village centre ` +
+    `(Overpass box ${CONFIG.halfSizeM * 2} m; the OSM API box starts at ${CONFIG.osmApiHalfSizeM * 2} m and widens to ` +
+    `${CONFIG.osmApiWiderHalfSizesM[CONFIG.osmApiWiderHalfSizesM.length - 1] * 2} m while it holds fewer than 5 buildings).${saved}`;
   console.log(`proof overpass: ${line}`);
   await writeBlock("README.md", "overpass", line);
   return { village, label: "live OpenStreetMap layout" };
