@@ -17,7 +17,7 @@
 3. **Chapter 3, share the load** (`app/page.tsx`). Pumps are capped, the overflow walks on, one shifted household's route shows in orange. Point at the mid-article CTA "Plan your own village".
 4. **Chapter 4, the WHO line** (`app/page.tsx`). The limit drops to 10 µg/L, more wells turn red and the far-from-safe-water count jumps.
 5. **Chapter 5, the next well** (`app/page.tsx`). The proposed deep well by Char para cuts the far count. Tap an open footpath corner near the red dashes to drill your own; the count falls again. In live mode this happens on real OpenStreetMap streets and buildings; point at the source line under the readout. This is the wow moment.
-6. **Planner** (`app/play/page.tsx`, `components/planner.tsx`). Click "Plan your own village" or the header link, click a house on the map, and the route card opens with the well, its sample test value, the distance and the minutes each way. On the sample village, "Load OSM buildings and paths" swaps in the live OpenStreetMap layout through `/api/village?live=1`.
+6. **Planner** (`app/play/page.tsx`, `components/planner.tsx`). Click "Plan your own village" or the header link, click a house on the map, and the route card opens with the well, its sample test value, the distance and the minutes each way. On the sample village, "Load OSM buildings and paths" swaps in the live OpenStreetMap layout through `/api/village?live=1`. The planner link carries the plan, and a CSV of the village's tested wells can be imported and the household assignments exported as a CSV.
 7. **Method notes** (`app/notes/page.tsx`). Open `/notes` to show the walking graph, the capacity rule, what is real and what is sample, and the sources.
 
 ## Closing line

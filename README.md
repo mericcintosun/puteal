@@ -26,9 +26,12 @@ Puteal turns a village into a walking graph and answers the question for every d
 4. **The next deep well.** Click any spot to drill a deep well. The count of people beyond 500 m updates immediately, so a union council can compare sites before spending.
 5. **Route cards.** Click a household to get a printable card: which well, its test result, distance along the path, minutes each way.
 
+6. **Your own wells, and the plan out.** In the planner, import a CSV of the village's tested wells (`name,lat,lon,arsenic_ugl` plus an optional `capacity`, up to 40 rows; `fixtures/wells-example.csv` shows the shape). Each row is checked, bad rows are listed by line, and the readout then says the values are imported, not sample. "Export assignments (CSV)" downloads one row per household with its well, the walk in meters and minutes, and whether it is over 500 m. Both happen in the browser; nothing is stored on a server.
+7. **Shareable plans.** The planner's address carries the limit, the pump cap and your deep wells (`/play?limit=10&cap=1&add=1255,185`), so a link opens the same plan.
+
 The home page tells this as a five-chapter scroll story on one sample village, Charpara. Every number in the text is computed by the engine, not typed in. The `/play` route is the same engine with every control open, and `/notes` holds the method and sources.
 
-**Honest about data:** all arsenic values are sample data, and so is the Charpara layout. We did not find a public per-well dataset to ship. In live mode the buildings and paths are real OpenStreetMap data, and a line under each readout says which layout you are looking at.
+**Honest about data:** all arsenic values are sample data unless you import your own wells CSV, and the Charpara layout is sample data too. We did not find a public per-well dataset to ship. In live mode the buildings and paths are real OpenStreetMap data, and a line under each readout says which layout you are looking at.
 
 ## Live mode
 
@@ -84,17 +87,31 @@ npm run dev
 No environment variables are required. `.env.example` lists two optional ones: `ADAPTER_MODE` (default `fake`, which serves the sample village; `real` turns on live mode) and `OVERPASS_URL`, for pointing the server at another Overpass mirror.
 
 ```bash
-npm test        # vitest: engine snapshot and invariants, OSM parser, request schemas
+npm test        # vitest: engine snapshot and invariants, OSM parser, request schemas, planner URL, wells CSV
 npm run proof   # one live Overpass call, saves the snapshot, rewrites the proof lines above
 ```
 
 `npm run seed` writes the sample village to `fixtures/charpara.seed.json` (Node 22.6 or later, for type stripping).
 
+Last proof of the planner round trip (the example wells CSV through the planner's parser and the engine):
+
+<!-- PROOF:BEGIN planner-roundtrip -->
+Run on 2026-11-24: fixtures/wells-example.csv gives 12 valid wells and 1 rejected row. On the sample village at 10 µg/L with those wells, 67 people live more than 500 m from their assigned safe well (126 with the sample wells).
+<!-- PROOF:END planner-roundtrip -->
+
+## Resetting the demo
+
+```bash
+npm run demo:reset   # same as npm run seed
+```
+
+Puteal has no store and no chain: the village comes from the adapter, the solve runs in memory, and planner state lives in the URL and in the page. So a reset means regenerating `fixtures/charpara.seed.json` and nothing else. Browser state is cleared by loading `/play` without parameters. There is no migration command, because there is no database to migrate.
+
 ## What we would build next
 
 - Move the solver into a Web Worker so OSM villages with thousands of buildings stay smooth (live mode keeps the nearest 700 buildings for now).
 - Replace the greedy pass with an exact min-cost flow and compare the two on real villages.
-- CSV import for a field team's own test results, plus an "edit this well" panel.
+- An "edit this well" panel next to the CSV import, and imported wells carried in the share link.
 - Suggest the best deep-well site automatically by scoring every graph node.
 - Bangla route cards.
 

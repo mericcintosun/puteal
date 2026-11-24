@@ -1,5 +1,6 @@
-// npm run proof: three proofs, one summary line each on stdout, written between
+// npm run proof: four proofs, one summary line each on stdout, written between
 // <!-- PROOF:BEGIN name --> and <!-- PROOF:END name --> markers in README.md and DEMO.md.
+//   planner-roundtrip: the example wells CSV through the planner's parser and the engine
 //   overpass: one real Overpass call with CONFIG and the shared query builder; on success it
 //             also saves fixtures/osm-charpara.json, the snapshot the real adapter falls back to
 //   engine:   solves the OSM layout (live, else the snapshot) at 10 µg/L with and without the
@@ -18,6 +19,8 @@ import { codeOf } from "../lib/errors";
 import { parseOsmElements, slimElements } from "../lib/osm";
 import { overpassResponseSchema, type OverpassElement } from "../lib/schemas";
 import type { Village } from "../lib/types";
+import { parseWellsCsv } from "../lib/wells-csv";
+import { WELLS_EXAMPLE_CSV } from "../lib/wells-example";
 
 // The adapter's [core] step logs go to console.info; keep stdout to one line per proof.
 console.info = () => {};
@@ -148,6 +151,44 @@ async function proveEngine(layout: Layout | null): Promise<void> {
   );
 }
 
+/**
+ * planner-roundtrip: parses fixtures/wells-example.csv with the planner's own parser, solves
+ * the sample village at 10 µg/L with those wells, and writes the valid row count and the
+ * far count. Same input, same line, so it is safe to run again.
+ */
+async function provePlannerRoundtrip(): Promise<void> {
+  const file = "fixtures/wells-example.csv";
+  let text: string;
+  try {
+    text = await fs.readFile(path.join(ROOT, file), "utf8");
+  } catch {
+    const line = `Not run in this build: ${file} is missing.`;
+    console.log(`proof planner-roundtrip: ${line}`);
+    await writeBlock("README.md", "planner-roundtrip", line);
+    return;
+  }
+  const r = parseWellsCsv(text, SAMPLE_VILLAGE.origin);
+  if (r.wells.length === 0) {
+    const first = r.rejected[0];
+    const line = `Not run in this build: ${file} gave no valid wells${first ? ` (line ${first.line}: ${first.reason})` : ""}.`;
+    console.log(`proof planner-roundtrip: ${line}`);
+    await writeBlock("README.md", "planner-roundtrip", line);
+    return;
+  }
+  const prep = prepareVillage(SAMPLE_VILLAGE);
+  const opts = { threshold: THRESHOLDS.who, capacitated: true };
+  const k = solve(prep, r.wells, opts).kpis;
+  const sample = solve(prep, SAMPLE_VILLAGE.wells, opts).kpis;
+  const same = text === WELLS_EXAMPLE_CSV ? "" : ` Warning: ${file} differs from the copy in lib/wells-example.ts.`;
+  const line =
+    `Run on ${today}: ${file} gives ${r.wells.length} valid wells and ${r.rejected.length} rejected ` +
+    `row${r.rejected.length === 1 ? "" : "s"}. On the sample village at 10 µg/L with those wells, ` +
+    `${Math.round(k.farPeople)} people live more than 500 m from their assigned safe well ` +
+    `(${Math.round(sample.farPeople)} with the sample wells).${same}`;
+  console.log(`proof planner-roundtrip: ${line}`);
+  await writeBlock("README.md", "planner-roundtrip", line);
+}
+
 async function main() {
   let layout: Layout | null = null;
   try {
@@ -160,6 +201,11 @@ async function main() {
     await proveEngine(layout);
   } catch {
     console.log("proof engine: Not run in this build: unexpected error.");
+  }
+  try {
+    await provePlannerRoundtrip();
+  } catch {
+    console.log("proof planner-roundtrip: Not run in this build: unexpected error.");
   }
   console.log("proof tests: not run by this script; run npm test (vitest) for the engine, parser and schema tests.");
 }

@@ -189,3 +189,68 @@ Demo flow to rehearse (90 s): open `/`, scroll chapter 1 (village, red and green
 - Set `ADAPTER_MODE=fake` once and check the sample line shows.
 
 **Next best step.** Phase 3: well editing and CSV import behind the adapter, then the Web Worker if the live layout feels slow on a phone.
+
+## Phase 3: planner state, import and export on the real path
+
+**Goal.** Make the 90 second path hold up, share and check on the real layout: a named fallback in code for every DEMO.md step, the planner's state in its URL, a field worker's own wells in by CSV and the assignments out by CSV, and Skeleton, ErrorState and EmptyState branches on every demo route.
+
+**Status.** Slices 1 to 5 written. Slice 6 (Web Worker): deferred. Nothing was built, tested or run by the agent.
+
+**Decisions.**
+
+Persistence. Chosen row: "Steps only read seeded or computed data", so no store.
+- The village comes from the adapter (OSM, snapshot or sample).
+- The solve is pure and in memory.
+- Planner state lives in URL params and component state; imported wells live in component state only.
+- Rejected: KV (no demo step needs a mutable shared list), Postgres (no joins), on-chain (no chain).
+- So `lib/store.ts` does not exist, there is no store secret, and the template's write-path guards do not apply. `POST /api/solve` is a pure function of its body, so repeats return the same result.
+- Reset: there is no store and no chain, so reset means regenerating `fixtures/charpara.seed.json` (`npm run demo:reset`, which runs `npm run seed`) and nothing else. Browser state is cleared by loading `/play` without parameters. No migration command exists, because there is no store.
+- `.env.example` and `.farm-live.json`: no new keys. Checked, both unchanged.
+
+Fallback map (one row per DEMO.md step):
+
+| Step | Real path (file, symbol) | Fallback (file, symbol) |
+| --- | --- | --- |
+| 1. Chapter 1, the village | `app/page.tsx` `loadVillage` calls `getAdapter().getVillage()`; in real mode `lib/adapter.real.ts` `loadVillage` (live Overpass, then `snapshotVillage`, then `SAMPLE_VILLAGE`) | `app/page.tsx` `loadVillage` catch returns `fakeAdapter.getVillage()` with mode "fake" |
+| 2. Chapter 2, nearest is not enough | same `app/page.tsx` `loadVillage`; `components/story-scroll.tsx` solves in the browser | same catch in `app/page.tsx` `loadVillage`; inside the real adapter the snapshot then sample chain in `lib/adapter.real.ts` `loadVillage` |
+| 3. Chapter 3, share the load | same `app/page.tsx` `loadVillage` | same catch in `app/page.tsx` `loadVillage` |
+| 4. Chapter 4, the WHO line | same `app/page.tsx` `loadVillage` | same catch in `app/page.tsx` `loadVillage` |
+| 5. Chapter 5, the next well | same `app/page.tsx` `loadVillage`; the drop runs `solve` client side in `components/story-scroll.tsx`, no network | same catch in `app/page.tsx` `loadVillage`; `lib/source-line.ts` `sourceLine` names the tier that answered |
+| 6. Planner | `app/play/page.tsx` `loadVillage` (adapter raced against `VILLAGE_BUDGET_MS`, 4 s) plus `parsePlannerQuery` in `lib/planner-url.ts`; "Load OSM" runs `components/planner.tsx` `loadOsm` through `/api/village?live=1` | `app/play/page.tsx` `loadVillage` catch returns `fakeAdapter`; a bad link falls back per field in `parsePlannerQuery`; `loadOsm` failure shows `ErrorState` in the Village layout card with the sample still on the map; a bad CSV keeps the current wells (`components/wells-import.tsx` `apply`) |
+| 7. Method notes | `app/notes/page.tsx` `loadSections` calls `getAdapter().getVillage()` and `buildSections` | `app/notes/page.tsx` `loadSections` catch builds the sections from `fakeAdapter.getVillage()` |
+
+Other decisions.
+- `/play` now reads `searchParams`, so it renders per request instead of at build. In real mode a cold instance would wait on Overpass (up to two 8 s tries), so the page races the adapter against a 4 s budget and serves the sample village past it. `/` and `/notes` stay static.
+- `plannerQuerySchema` (zod, `lib/schemas.ts`) checks each field; `parsePlannerQuery` parses them one by one so a bad `limit` keeps a good `add`. Any ignored field sets the existing `invalid_input` code and the planner shows a dismissible line. More than 20 wells drops the `add` field entirely.
+- The default plan keeps a clean `/play` address; any other state is written with `window.history.replaceState`, no navigation. Imported wells are not in the URL (40 rows would not fit well); the planner says so when wells are imported.
+- Imported wells get `testedOn: "imported"` and ids `import-N` (`isImportedWell`), with depth 0 and kind "shallow" because the CSV has no depth column, and capacity 100 when the column is missing. No type or zod model change. The readout, the Wells card and `sourceLine` switch wording to "imported test values" when they replace the sample wells.
+- Rows more than 5 km from the village centre are rejected as a likely lat/lon typo.
+- `exportAssignmentsCsv` takes its distance from the assignment (`Assignment.meters`, the same figure the route card shows) and `walkMinutes`; it does not call `routeFor`, because the route points are not needed for the numbers.
+- `fixtures/wells-example.csv` holds the 12 sample well positions turned back into lat/lon with the inverse of `toMeters` (formula in `lib/wells-example.ts`), one changed value (Haque bari pump 9 instead of 22) and one deliberate bad row (2500 µg/L, line 14) so the rejected-rows list shows. `lib/wells-example.ts` is the same text as a string; `npm run proof` warns if they drift.
+
+**Failed attempts.** None.
+
+**Files changed.**
+- New: `components/states.tsx`, `components/wells-import.tsx`, `app/play/error.tsx`, `app/notes/error.tsx`, `lib/planner-url.ts`, `lib/planner-url.test.ts`, `lib/wells-csv.ts`, `lib/wells-csv.test.ts`, `lib/wells-example.ts`, `fixtures/wells-example.csv`, `.farm-commits.json`
+- Edited: `app/page.tsx`, `app/play/page.tsx`, `app/notes/page.tsx`, `app/loading.tsx`, `app/play/loading.tsx`, `app/notes/loading.tsx`, `app/error.tsx`, `components/planner.tsx`, `lib/schemas.ts`, `lib/source-line.ts`, `package.json`, `scripts/proof.ts`, `README.md`, `DEMO.md`, `HANDOFF.md`
+- Checked, unchanged: `lib/adapter.ts`, `lib/adapter.real.ts`, `lib/adapter.fake.ts`, `scripts/seed.mjs`, `.env.example`, `.farm-live.json`
+
+**Commands run.** None, the agent has no shell.
+
+**Open questions.**
+- Should imported wells travel in the share link (for example as a compressed param)? Left out for now.
+- Should `/play` stay per request, or move the URL read to the client under `<Suspense>` so the page can be static again? The spec asked for the server read; the 4 s budget covers the cold-start risk.
+- `components/scene-slot.tsx:22` and `components/brand-mark.tsx:11` render raw `<img>`. Both predate this phase, brand-mark is on the never-touch list and the illustrations keep their current loader, so they were left alone.
+
+**Unmet or unverified items (evidence).**
+- Build, `npm test` (new: `lib/planner-url.test.ts`, `lib/wells-csv.test.ts`) and `npm run proof` (new block `planner-roundtrip` in README.md): not run by the agent.
+- Slice 6, Web Worker: deferred; `components/planner.tsx` still calls `solve` in `useMemo`.
+- The export does not use `routeFor` (see Decisions).
+- Live walk of DEMO.md steps 1 to 7 three times, the `/play?limit=10&cap=1&add=...` link check, the CSV import and export on https://puteal.vercel.app: runner and human tasks.
+
+**Manual checklist.**
+- After `npm run proof`, commit the rewritten `planner-roundtrip` block.
+- On the live site open `/play?limit=10&cap=1&add=1255,185`, check the WHO toggle, the cap and one deep well are on; press "Use the example file", check 12 wells and one skipped row (line 14), then "Export assignments (CSV)".
+- Confirm the builder is a student aged 13 or over before submitting.
+
+**Next best step.** Phase 4: bounty and landing polish.
