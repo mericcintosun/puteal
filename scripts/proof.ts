@@ -4,7 +4,8 @@
 //   overpass: one real Overpass call with CONFIG and the shared query builder; on success it
 //             also saves fixtures/osm-charpara.json, the snapshot the real adapter falls back to
 //   engine:   solves the OSM layout (live, else the snapshot) at 10 µg/L with and without the
-//             proposed deep well
+//             proposed deep well; with no OSM layout it reports the sample village solve and
+//             says the OSM figure was not computed
 //   tests:    not run here; the line names the command
 // It never throws on a missing network, always exits 0 and stops itself after 110 seconds.
 // Only scripts/ may write files; this is one of them.
@@ -133,7 +134,11 @@ async function proveEngine(layout: Layout | null): Promise<void> {
     `of safe water (${sample.before} to ${sample.after} far at 10 µg/L).`;
 
   if (!layout) {
-    const line = "Not run in this build: no OSM layout available.";
+    // The engine itself still runs: on the sample village. Only the OpenStreetMap figure is missing.
+    const line =
+      `Run on ${today} on the sample village Charpara (${SAMPLE_VILLAGE.households.length} households, ${sample.people} people, ` +
+      `sample wells), solved in ${sample.ms} ms: ${sampleSentence.replace(/^On the sample village Charpara, /, "")} ` +
+      `The OpenStreetMap layout was not available in this build (no Overpass answer and no saved snapshot), so that figure was not computed.`;
     console.log(`proof engine: ${line}`);
     await writeBlock("README.md", "engine", line);
     await writeBlock("DEMO.md", "demo-closing", `${sampleSentence} The OpenStreetMap figure was not run in this build: no OSM layout available.`);
