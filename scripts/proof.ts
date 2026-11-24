@@ -22,8 +22,10 @@ import type { Village } from "../lib/types";
 import { parseWellsCsv } from "../lib/wells-csv";
 import { WELLS_EXAMPLE_CSV } from "../lib/wells-example";
 
-// The adapter's [core] step logs go to console.info; keep stdout to one line per proof.
+// The adapter's [core] step logs go to console.info and console.warn; keep the output to one
+// line per proof (a failed Overpass attempt is named in the overpass line itself).
 console.info = () => {};
+console.warn = () => {};
 
 const ROOT = process.cwd();
 const today = new Date().toISOString().slice(0, 10);
@@ -60,18 +62,20 @@ interface Layout {
 
 async function proveOverpass(): Promise<Layout | null> {
   const plan = osmPlan();
-  const host = new URL(CONFIG.overpassUrl).host;
-  let fetched: { elements: OverpassElement[]; ms: number } | null = null;
+  let fetched: { elements: OverpassElement[]; ms: number; host: string } | null = null;
   try {
-    fetched = await fetchOverpassElements(plan.query);
+    // The build machine has time to spare: a longer per-try timeout than a page request gets
+    // (the query itself allows Overpass 25 s), and a budget that stays under the 110 s guard.
+    fetched = await fetchOverpassElements(plan.query, { timeoutMs: 30_000, budgetMs: 80_000 });
   } catch (e) {
-    const line = `Not run in this build: Overpass did not answer (${codeOf(e)}).`;
+    const tried = e instanceof Error && e.message !== codeOf(e) ? `: ${e.message}` : "";
+    const line = `Not run in this build: no Overpass instance answered (${codeOf(e)}${tried}).`;
     console.log(`proof overpass: ${line}`);
     await writeBlock("README.md", "overpass", line);
     return null;
   }
   if (!fetched) return null;
-  const { elements, ms } = fetched;
+  const { elements, ms, host } = fetched;
 
   let village: Village;
   try {

@@ -5,6 +5,8 @@ import { solveRequestSchema } from "@/lib/schemas";
 import type { ApiResponse, Solution } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+// A cold instance may walk the Overpass mirror list (CONFIG.overpassBudgetMs) before solving.
+export const maxDuration = 30;
 
 function fail(code: ErrorCode) {
   const body: ApiResponse<Solution> = { ok: false, error: code, hint: hintFor(code) };

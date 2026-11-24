@@ -6,6 +6,8 @@ import type { ApiResponse, Village } from "@/lib/types";
 
 // Reads ADAPTER_MODE per request, so the mode can change without a rebuild.
 export const dynamic = "force-dynamic";
+// A cold instance may walk the Overpass mirror list (CONFIG.overpassBudgetMs).
+export const maxDuration = 30;
 
 function fail(code: ErrorCode) {
   const body: ApiResponse<Village> = { ok: false, error: code, hint: hintFor(code) };
