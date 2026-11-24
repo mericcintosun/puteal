@@ -11,8 +11,8 @@ export interface ApiError {
 
 const HINTS: Record<ErrorCode, string> = {
   invalid_input: "The request did not match the expected shape: threshold 10 or 50, capacityOn true or false, at most 20 extra wells.",
-  upstream_timeout: "OpenStreetMap's Overpass server took too long to answer. Try again in a minute.",
-  upstream_error: "OpenStreetMap's Overpass server could not answer right now. Try again in a minute.",
+  upstream_timeout: "The OpenStreetMap servers took too long to answer. Try again in a minute.",
+  upstream_error: "The OpenStreetMap servers could not answer right now. Try again in a minute.",
   parse_failure: "The map data came back in a shape Puteal could not use, or too few buildings are mapped here.",
   not_configured: "This part of Puteal is switched off on this deployment.",
 };

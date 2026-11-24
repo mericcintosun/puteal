@@ -61,16 +61,16 @@ flowchart LR
 
 By default (or with `ADAPTER_MODE=real`) the village layout comes from live OpenStreetMap: the server asks the public Overpass API for every building and walkable way in a 1.3 km square around the sample village, turns each building into a household of 4.2 people, and runs the same engine on it. The real adapter needs no key. The wells, their sample arsenic values and the six hamlet names stay sample data.
 
-The real adapter answers from the first source that works: the server's own copy if it is younger than 10 minutes, a live Overpass call (three public instances tried in order, 8 seconds per try, a short backoff between tries, 20 seconds in all), the snapshot `fixtures/osm-charpara.json`, then the sample village Charpara, with one calm line under the plan saying so. With `ADAPTER_MODE=fake` everything runs on the sample village.
+The real adapter answers from the first source that works: the server's own copy if it is younger than 10 minutes, a live OpenStreetMap read (four public Overpass instances and the OpenStreetMap main API `map.json` asked at once, the first usable answer wins, each retried once, 20 seconds in all), the snapshot `fixtures/osm-charpara.json`, then the sample village Charpara, with one calm line under the plan saying so. With `ADAPTER_MODE=fake` everything runs on the sample village.
 
 Last proof of the live path:
 
 <!-- PROOF:BEGIN overpass -->
-Not run in this build: no Overpass instance answered (upstream_timeout: maps.mail.ru POST: upstream_error, status 504; maps.mail.ru POST: upstream_error, status 504; overpass-api.de POST: upstream_error, network; overpass-api.de POST: upstream_error, network; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout).
+Not run in this build: no OpenStreetMap source answered, neither an Overpass instance nor the OSM API (upstream_timeout: maps.mail.ru POST: upstream_error, status 504; maps.mail.ru POST: upstream_error, status 504; overpass-api.de POST: upstream_error, network; overpass-api.de POST: upstream_error, network; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; only 0 buildings mapped).
 <!-- PROOF:END overpass -->
 
 <!-- PROOF:BEGIN engine -->
-Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 24 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). The OpenStreetMap layout was not available in this build (no Overpass answer and no saved snapshot), so that figure was not computed.
+Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 19 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). The OpenStreetMap layout was not available in this build (no OpenStreetMap source answered and no saved snapshot), so that figure was not computed.
 <!-- PROOF:END engine -->
 
 ## Quickstart

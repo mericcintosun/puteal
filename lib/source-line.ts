@@ -8,8 +8,8 @@ export function sourceLine(mode: AdapterMode, village: Village, opts: { imported
   const wells = opts.importedWells ? "Well test values are imported from your file." : "Well test values are sample data.";
   if (village.source === "osm") {
     return village.layoutTier === "snapshot"
-      ? `Saved layout: an OpenStreetMap snapshot of buildings and footpaths, fetched via Overpass. ${wells}`
-      : `Live layout: OpenStreetMap buildings and footpaths via Overpass. ${wells}`;
+      ? `Saved layout: an OpenStreetMap snapshot of buildings and footpaths. ${wells}`
+      : `Live layout: OpenStreetMap buildings and footpaths. ${wells}`;
   }
   if (opts.importedWells) return `Sample layout of Charpara with your imported wells, solved in your browser. ${wells}`;
   if (mode === "real") return "Live OpenStreetMap was unavailable, so this is the sample village.";
