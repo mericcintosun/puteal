@@ -350,3 +350,62 @@ None, the agent has no shell.
 ### Next best step
 
 Phase 5, the frontend pass: kit signatures 2 and 3 (parallax coda, sticky horizontal method strip), then a real-device check of the planner at 360px.
+
+## Phase 5: frontend pass, scene and submission package
+
+**Goal.** Pass the 10-second stranger test on `/` with the full D8 identity, place five scene slots, finish the three K3 interactions, and ship the submission package (README, SUBMISSION.md, docs/SCREENSHOTS.md).
+
+**Status.** Parts A, B and C written. Five scene slots placed (the sixth was cut first, as the cut order says). Nothing was built, tested or run by the agent. The defect by defect record is `.farm-delta.md` (13 diagnosis items, 20 change rows, 2 kept rows).
+
+**Decisions.**
+- First screen: `StoryHero` in `components/story-scroll.tsx` (client) wraps the kicker, headline and a two sentence standfirst, then scene 1 cropped wide (1280 by 560, `object-cover`). K3 signature 2: the text moves 0 to -20% and the picture 0 to 7% inside its frame through `useTransform`; both start at rest, so server HTML is in place, and `useReducedMotion` removes the transforms.
+- K3 signature 1: Lenis root unchanged (`components/smooth-scroll.tsx`, not mounted under reduced motion), progress bar unchanged. New `components/chapter-link.tsx` holds `scrollToChapter` (lenis.scrollTo with the pinned plan's height as offset, browser scroll as fallback) and `ChapterLink`, used by the hero's "Start with chapter 1" link and the chapter rail. Lenis `anchors` was not turned on, because a global anchor handler would land headings under the pinned plan.
+- K3 signature 3: `components/method-strip.tsx`, after the story and before the coda, inside the single column. Vertical scroll over a 240vh track moves four step cards sideways (`useScroll` plus `useTransform` to `x`); Previous and Next buttons scroll the page to each step. Every number is computed from `SAMPLE_VILLAGE` with `prepareVillage` and `solve`. The server HTML and the reduced-motion path are a plain vertical list; the sticky track mounts only after hydration when motion is allowed.
+- M4 wipe: one `puteal-wipe` keyframe; stagger by `.puteal-wipe-group > :nth-child(n)` rules instead of numbered helper classes. The base state is fully visible.
+- Chapter 3 copy now branches on `kb.shifted`: when no household is moved at 50 µg/L it says so instead of printing "0 households walk on". Chapter 4 adds the WHO shifted count when it is above 0.
+- Chapter 5 hands over with an outline button "Take this plan to the planner" whose link carries the WHO limit, the cap, the proposed deep well and the reader's own wells (`plannerSearch`).
+- Footer: one sentence, a GitHub link and a hackathon link. The hackathon URL `https://acodemic-x-keebsforwater-global-sdg-hackathon.devpost.com/` follows the Devpost slug pattern and was not opened by the agent; check it.
+- `/play` keeps its map plus sidebar grid at lg. The L3 two-column ban is held on the home route, as the phase spec directs; recorded as a Kept row.
+- `/notes`: the sources list folds behind a one-line `<details>` like the other sections.
+
+**Scene slots (all SVG fallbacks; no `public/brand` exists).**
+
+| n | route | file | size |
+| --- | --- | --- | --- |
+| 1 | `/` first screen, parallax layer | `app/page.tsx` | 1280 x 560 (crop of `scene-1.svg`) |
+| 2 | `/` coda | `app/page.tsx` | 640 x 640 (crop of `scene-2.svg`) |
+| 3 | `/notes` | `app/notes/page.tsx` | 960 x 640 |
+| 4 | `/play` route card empty state | `components/planner.tsx` | 960 x 420 (new `scene-4.svg`) |
+| 5 | 404 | `app/not-found.tsx` | 560 x 560 (new `scene-5.svg`) |
+
+Marka rerun needed: raster files not uploaded yet.
+
+**Failed attempts.** None.
+
+**Files changed.**
+- New: `components/method-strip.tsx`, `components/chapter-link.tsx`, `public/illustrations/scene-4.svg`, `public/illustrations/scene-5.svg`, `SUBMISSION.md`, `docs/SCREENSHOTS.md`, `.farm-delta.md`, `.farm-commits.json`
+- Edited: `app/globals.css`, `app/layout.tsx`, `app/page.tsx`, `app/not-found.tsx`, `app/notes/page.tsx`, `components/story-scroll.tsx`, `components/site-header.tsx`, `components/planner.tsx`, `components/wells-import.tsx`, `README.md`, `DELIVERY.md`, `IDENTITY.md` (one Amendments line), `HANDOFF.md`
+- Untouched: `components/brand-mark.tsx`, `public/logo.svg`, `public/__farm.txt`, `lib/engine.ts`, `lib/data.ts`, `.farm-live.json`, `components/smooth-scroll.tsx`, `components/ui/*`, `components/states.tsx`, `scripts/proof.ts` (no new command-made number was added), `.env.example`, `.gitignore` (both already complete), SECURITY.md and every Phase 4 security decision.
+
+**Commands run.** None, the agent has no shell.
+
+**Open questions.**
+- No LICENSE file exists. README says so plainly; pick a license (MIT is common for hackathon entries) and add the file, or leave it.
+- Should the method strip read the adapter's village (live OSM in real mode) instead of the sample? The spec asked for the sample village, so it is labelled "sample village Charpara".
+- Bare `<a>` tags remain for external links and the in-page `ChapterLink`; links are not form controls, so they were not wrapped in Button.
+
+**Unmet or unverified items (evidence).**
+- Build, `npm test`, `npm run proof`, deploy: not run. Build risk spots: `components/method-strip.tsx` passes a ref to `motion.ol` and uses `useMotionValueEvent`; `components/wells-import.tsx:96` passes `ref` to the `Input` function component (React 19 passes it as a prop, and `Input` spreads it onto `<input>`); `components/story-scroll.tsx` imports `plannerSearch` from `lib/planner-url.ts` on the client.
+- `useReducedMotion` guards the parallax (`components/story-scroll.tsx:33`). The method strip guards with a `matchMedia` effect (`components/method-strip.tsx`, `MethodStrip`), so the server and first client render agree.
+- Scene 1 and scene 2 are crops of the existing 960 by 640 SVGs through `aspect-*` plus `object-cover`, not redrawn files; `public/illustrations/scene-1.svg` and `scene-2.svg` are unchanged.
+- Responsive check at 360, 768 and 1280 px, Lighthouse, reduced motion, the strip's buttons and the Lenis chapter jump: runner and human tasks.
+
+**Manual submit checklist.**
+- Confirm the builder is a student aged 13 or over.
+- Record the demo video and paste its link into the form.
+- Upload 3 or more screenshots from `docs/SCREENSHOTS.md`.
+- Fill the form fields from SUBMISSION.md in order; add team member names by hand.
+- Confirm the repository https://github.com/mericcintosun/puteal is public.
+- Open the footer's hackathon link once and fix the URL in `app/layout.tsx` if Devpost uses a different address.
+
+**Next best step.** Judge rounds (Phases 6 and 7): walk the live site against the BEFORE shots defect by defect, then tune copy and the strip's track length on a real phone.
