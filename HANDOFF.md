@@ -97,3 +97,40 @@ Demo flow to rehearse (90 s): open `/`, scroll chapter 1 (village, red and green
 - The 90-second flow above works end to end on the sample village with no console errors.
 - The deep-well wow moment is rehearsed: one drop visibly cuts the far-from-safe-water count.
 - Three screenshots, tech stack and repo link added to the Devpost submission before 30 Nov 2026, 23:45 EST.
+
+## Phase 1: walking skeleton, seams and demo contract
+
+**Goal.** Every step of the 90 second demo renders sample data through a typed adapter and API stubs, the shell looks like a product, and the demo path is written down in `DEMO.md`, so Phase 2 can swap fake data for real data without touching pages.
+
+**Status.** All five slices written. Nothing was built or run by the agent; `npm run build` and `npm run seed` are unverified until the runner executes them. Mission items 1 to 3 in section 3 (live OSM with fallback, Web Worker, well editing and CSV import) belong to Phase 2.
+
+**Decisions.**
+- `lib/data.ts` is now a barrel (`export * from "./types"; export * from "./data/seed";`), so every existing `@/lib/data` import still resolves. Values and ids in `lib/data/seed.ts` are unchanged: 12 wells, 100 households from the same `mulberry32(6061)` scatter.
+- `lib/types.ts` holds the model, `ApiResponse<T>`, `SolveRequest` and an `AdapterMode` type; it re-exports `Solution` from `lib/engine.ts` with `export type`.
+- `PutealAdapter` carries a `mode` field ("fake" or "real") so the API routes can fill `ApiResponse.mode` without a second env read.
+- `getAdapter()` returns `fakeAdapter` unless `ADAPTER_MODE` equals `"real"`. `realAdapter` throws "real adapter lands in Phase 2" from both methods.
+- Server pages (`app/page.tsx`, `app/play/page.tsx`, `app/notes/page.tsx`) are async and read the village through `getAdapter().getVillage()`; `StoryScroll` takes `village`, `Planner` takes `initialVillage`. The browser still solves with `lib/engine.ts` directly.
+- `/api/solve` solves against the adapter's village plus `extraWells`; malformed JSON or a wrong shape returns 400 with `code: "bad_request"`. Adapter failures return 500 with `code: "adapter_error"` and no internal message.
+- `app/globals.css`: one `@theme static` block now carries the 11 IDENTITY hexes (`--color-ground`, `--color-surface`, `--color-deep`, `--color-line`, `--color-ink`, `--color-ember` for ACCENT, `--color-on-ember`, `--color-olive`, `--color-ok`, `--color-warn`, `--color-bad`), the 0.375rem radius, a 4px spacing base and a named type scale. `:root` aliases point at those variables and carry no hex. It changed from `@theme inline` to `@theme static` so the palette variables are always emitted; `components/village-map.tsx` reads the aliases at runtime. Check the rendered colors once after the first build.
+- Home page title uses `{ absolute: ... }` so the default title is kept; `/play` is "Planner", `/notes` is "Method and sources", the 404 is "Page not found".
+
+**Failed attempts.** None.
+
+**Files changed.**
+- New: `lib/types.ts`, `lib/data/seed.ts`, `lib/adapter.ts`, `scripts/seed.mjs`, `app/api/village/route.ts`, `app/api/solve/route.ts`, `app/loading.tsx`, `app/play/loading.tsx`, `app/notes/loading.tsx`, `DEMO.md`, `CLAUDE.md`
+- Edited: `lib/data.ts`, `package.json` (seed script), `.env.example`, `app/page.tsx`, `app/play/page.tsx`, `app/notes/page.tsx`, `app/layout.tsx`, `app/error.tsx`, `app/not-found.tsx`, `components/story-scroll.tsx`, `components/planner.tsx`, `components/village-map.tsx`, `components/site-header.tsx`, `app/globals.css`, `README.md`, `HANDOFF.md`
+- Unchanged and checked: `.gitignore` (already has `.env*` and `!.env.example`), `app/icon.svg` (Puteal mark), `tsconfig.json` (`"strict": true`), `next.config.ts` (no `output: "export"`)
+
+**Commands run.** None, the agent has no shell.
+
+**Open questions.**
+- `lib/brand-files.ts` reads `process.env.NEXT_PUBLIC_BRAND_FILES`, which `next.config.ts` sets at build time. It is not in `.env.example`; adding it would mean a new env line beyond `ADAPTER_MODE`, so it is left out and documented in `CLAUDE.md`. Decide whether to mirror it.
+- `npm run seed` needs Node 22.6 or later for `--experimental-strip-types`. If the runner's Node is older, the fix is a Phase 2 note (newer Node), not a new dependency.
+- `DEMO.md` closing line has an X for the people brought back by the proposed deep well. The story computes it at render time and the agent could not run the engine; read it from chapter 5 after the first deploy and write it in.
+
+**Unmet or unverified items.**
+- Build green, seed byte-identical twice, deploy, `/api/village` returning `mode: "fake"`, and a clean browser console: runner checks, not verified here.
+- `DEMO.md` closing line uses X instead of the real number (see above).
+- `lib/engine.ts:221` and similar section comments use decorative runs of hyphens (`/* ---------- assignment ---------- */`). Not touched this phase, since the engine was out of scope; swap them for plain comments in Phase 2.
+
+**Next best step.** Phase 2: live OSM path with a static fallback JSON in `public/`, the solver in a Web Worker, well editing and CSV import, all behind `realAdapter`; then `npm run proof` and `.farm-live.json`.

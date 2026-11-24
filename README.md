@@ -43,9 +43,10 @@ There is no sponsor SDK for this hackathon. The external services Puteal calls a
 - MapLibre GL JS 5, OpenStreetMap raster tiles
 - Overpass API, no key
 - Hand-written walking graph, binary-heap Dijkstra and regret-ordered assignment in TypeScript (`lib/engine.ts`), running in the browser
-- Lenis and Motion for the scroll story
-- Tailwind CSS v4 with shadcn-style components
-- Vercel for hosting
+- Lenis 1 and Motion 14 for the scroll story
+- Tailwind CSS 4 with shadcn-style components
+- A typed data adapter (`lib/adapter.ts`) behind the pages and two JSON routes, `GET /api/village` and `POST /api/solve`
+- Hosted on Vercel
 
 ## Quickstart
 
@@ -55,7 +56,9 @@ npm run dev
 # open http://localhost:3000
 ```
 
-No environment variables are required. `.env.example` lists one optional variable, `NEXT_PUBLIC_OVERPASS_URL`, for pointing the planner at an Overpass mirror.
+No environment variables are required. `.env.example` lists two optional ones: `ADAPTER_MODE` (default `fake`, which serves the sample village) and `NEXT_PUBLIC_OVERPASS_URL`, for pointing the planner at an Overpass mirror.
+
+`npm run seed` writes the sample village to `fixtures/charpara.seed.json` (Node 22.6 or later, for type stripping).
 
 ## What we would build next
 
