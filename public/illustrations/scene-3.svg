@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640">
+  <rect width="960" height="640" fill="#151413"/>
+  <rect x="40" y="40" width="880" height="560" rx="6" fill="#1d1c1a" stroke="#38352f" stroke-width="2"/>
+  <line x1="41" y1="41" x2="919" y2="41" stroke="#eceae6" stroke-opacity="0.16" stroke-width="2"/>
+  <g fill="none" stroke="#38352f" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="60,330 240,318 420,330 600,342 780,330 900,318"/>
+    <polyline points="420,330 432,190 420,70"/>
+    <polyline points="420,330 408,470 420,580"/>
+    <polyline points="600,342 720,500 840,560"/>
+    <polyline points="240,318 210,500"/>
+  </g>
+  <g stroke="#eceae6" stroke-opacity="0.5" stroke-width="2" stroke-dasharray="4 5">
+    <line x1="200" y1="260" x2="214" y2="316"/>
+    <line x1="290" y1="270" x2="276" y2="316"/>
+    <line x1="470" y1="250" x2="430" y2="250"/>
+    <line x1="370" y1="410" x2="412" y2="420"/>
+    <line x1="760" y1="540" x2="790" y2="528"/>
+    <line x1="860" y1="500" x2="826" y2="552"/>
+  </g>
+  <g fill="#eceae6" opacity="0.85">
+    <rect x="190" y="248" width="20" height="20"/>
+    <rect x="282" y="258" width="20" height="20"/>
+    <rect x="470" y="240" width="20" height="20"/>
+    <rect x="352" y="398" width="20" height="20"/>
+    <rect x="748" y="530" width="20" height="20"/>
+    <rect x="852" y="482" width="20" height="20"/>
+  </g>
+  <circle cx="240" cy="318" r="7" fill="#8a9a5b"/>
+  <circle cx="420" cy="330" r="7" fill="#8a9a5b"/>
+  <circle cx="600" cy="342" r="7" fill="#8a9a5b"/>
+  <circle cx="330" cy="300" r="16" fill="#69a56f" stroke="#151413" stroke-width="4"/>
+  <circle cx="560" cy="300" r="16" fill="#ef6a5a" stroke="#151413" stroke-width="4"/>
+  <circle cx="432" cy="160" r="16" fill="#69a56f" stroke="#151413" stroke-width="4"/>
+  <circle cx="810" cy="546" r="20" fill="#e0632c" stroke="#151413" stroke-width="4"/>
+  <circle cx="810" cy="546" r="38" fill="none" stroke="#e0632c" stroke-width="2"/>
+  <circle cx="330" cy="300" r="34" fill="none" stroke="#e0b84e" stroke-width="3" stroke-dasharray="8 6"/>
+</svg>
