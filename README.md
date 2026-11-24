@@ -28,6 +28,7 @@ Puteal turns a village into a walking graph and answers the question for every d
 
 6. **Your own wells, and the plan out.** In the planner, import a CSV of the village's tested wells (`name,lat,lon,arsenic_ugl` plus an optional `capacity`, up to 40 rows; `fixtures/wells-example.csv` shows the shape). Each row is checked, bad rows are listed by line, and the readout then says the values are imported, not sample. "Export assignments (CSV)" downloads one row per household with its well, the walk in meters and minutes, and whether it is over 500 m. Both happen in the browser; nothing is stored on a server.
 7. **Shareable plans.** The planner's address carries the limit, the pump cap and your deep wells (`/play?limit=10&cap=1&add=1255,185`), so a link opens the same plan.
+8. **An SDG 6.1 statement.** Under the planner's readout, a summary card turns the plan into the target's own terms: people farther than 500 m from safe water before and after your deep wells, the people brought back within reach in one sentence, the mean walk, and the source line. It prints on its own.
 
 The home page tells this as a five-chapter scroll story on one sample village, Charpara. Every number in the text is computed by the engine, not typed in. The `/play` route is the same engine with every control open, and `/notes` holds the method and sources.
 
@@ -56,24 +57,39 @@ Not run in this build: Overpass did not answer (upstream_error).
 Not run in this build: no OSM layout available.
 <!-- PROOF:END engine -->
 
-## Required and sponsor tech
+## Placements and sponsor tech
 
-There is no sponsor SDK for this hackathon. The external services Puteal calls are all public and keyless:
+Puteal is entered in the Acodemic X KeebsforWater Global SDG Hackathon. One submission enters all three placements:
+
+| Placement | Prize |
+| --- | --- |
+| 1st Place | $ 20 in cash |
+| 2nd Place | $ 10 in cash |
+| 3rd Place | $ 5 in cash |
+
+| Bounty | Prize | Slots | Required tech | Code file | DEMO step |
+| --- | --- | --- | --- | --- | --- |
+
+The event publishes no sponsor bounty, and the three placements share one pool, so no row above is filled in and no sponsor integration was built.
+
+The external services Puteal calls are all public and keyless:
 
 - **Overpass API** (`lib/adapter.real.ts`, `lib/osm.ts`): the server fetches buildings and walkable ways for the village bounding box, checks the response with zod and converts it to the engine's meter frame.
 - **OpenStreetMap raster tiles** through **MapLibre GL JS** (`components/village-map.tsx`).
 
 ## Tech stack
 
+Next.js 15, React 19, TypeScript, Tailwind CSS 4, MapLibre GL JS 5, Motion 14, Lenis, zod 3, Vitest, Vercel, Overpass API, OpenStreetMap tiles.
+
 - Next.js 15 (App Router), React 19, TypeScript (strict)
-- MapLibre GL JS 5, OpenStreetMap raster tiles
-- Overpass API, no key
-- Hand-written walking graph, binary-heap Dijkstra and regret-ordered assignment in TypeScript (`lib/engine.ts`), running in the browser
-- Lenis 1 and Motion 14 for the scroll story
-- Tailwind CSS 4 with shadcn-style components
+- MapLibre GL JS 5 over OpenStreetMap raster tiles
+- Overpass API, called from the server, no key
+- Hand-written walking graph, binary-heap Dijkstra and regret-ordered assignment in TypeScript (`lib/engine.ts`), running on the browser's main thread (no Web Worker is built; see "What we would build next")
+- Lenis and Motion 14 for the scroll story and the SDG card's count
+- Tailwind CSS 4 with shadcn-style components and lucide-react icons
 - A typed data adapter (`lib/adapter.ts`) behind the pages and two JSON routes, `GET /api/village` and `POST /api/solve`
 - zod 3 for request and Overpass response validation
-- Vitest 3 for tests, tsx 4 for the proof script
+- Vitest for tests, tsx for the proof script
 - Hosted on Vercel
 
 ## Quickstart

@@ -41,6 +41,24 @@ export default async function Home() {
         crowded. Puteal matches every household to a safe well along real footpaths, keeps each pump under its load, and shows where
         one new deep well would bring the most people back within reach.
       </p>
+      <p className="puteal-wipe puteal-wipe-3 mt-4 leading-relaxed">
+        It is built for the field workers and student volunteers who test wells and paint spouts in arsenic-affected villages, and it
+        counts what UN SDG target 6.1 asks about: how many people live more than 500 m from safe water.{" "}
+        <a
+          href="#chapter-village"
+          className="inline-flex min-h-11 items-center text-primary underline decoration-primary/50 underline-offset-4 hover:decoration-primary"
+        >
+          Start with chapter 1, the village
+        </a>{" "}
+        or{" "}
+        <Link
+          href="/play"
+          className="inline-flex min-h-11 items-center text-primary underline decoration-primary/50 underline-offset-4 hover:decoration-primary"
+        >
+          open the planner
+        </Link>
+        .
+      </p>
 
       <figure className="mt-10">
         <div className="overflow-hidden rounded-md border border-border border-t-edge bg-card">
