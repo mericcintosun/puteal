@@ -100,12 +100,14 @@ export function ErrorState({
   return (
     <Card role="alert" className={cn("border-l-2 border-l-bad", className)}>
       <CardContent className="space-y-2 p-4">
-        <p className="flex items-center gap-2 font-display font-semibold">
+        <p className="flex min-w-0 items-center gap-2 font-display font-semibold">
           <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-bad" />
-          {title}
+          <span className="min-w-0 break-words" title={title}>
+            {title}
+          </span>
         </p>
-        <p className="text-sm leading-relaxed text-muted-foreground">{hint}</p>
-        <div className="flex flex-wrap gap-1.5 pt-1">
+        <p className="break-words text-sm leading-relaxed text-muted-foreground">{hint}</p>
+        <div className="flex flex-wrap gap-1.5 pt-1 [&_a]:min-h-11 [&_button]:min-h-11">
           <Button variant="outline" size="sm" onClick={onRetry}>
             <RotateCcw /> {retryLabel}
           </Button>
@@ -142,7 +144,7 @@ export function EmptyState({
         {title}
       </p>
       <p className="text-muted-foreground">{hint}</p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 [&_button]:min-h-11">
         <Button variant="outline" size="sm" onClick={onAction}>
           {actionIcon} {actionLabel}
         </Button>

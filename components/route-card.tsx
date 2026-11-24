@@ -27,15 +27,15 @@ function testedLabel(w: Well): string {
 /** The printable household route card. Print hides everything else on the page. */
 export function RouteCard({ household, hamletName, villageName, assignment, well, nearest, threshold, onClose }: RouteCardProps) {
   return (
-    <Card className="puteal-print">
+    <Card className="puteal-print" data-print-id="route">
       <CardHeader className="flex-row items-start justify-between gap-2">
-        <div>
-          <CardTitle>Route card for household {household.label}</CardTitle>
-          <CardDescription>
+        <div className="min-w-0">
+          <CardTitle className="break-words">Route card for household {household.label}</CardTitle>
+          <CardDescription className="break-words" title={`${hamletName}, ${villageName}`}>
             {hamletName}, {villageName} · about {household.people} people
           </CardDescription>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close route card" className="puteal-noprint -mr-2 -mt-1 h-7 w-7">
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close route card" className="puteal-noprint -mr-3 -mt-2 size-11 shrink-0">
           <X />
         </Button>
       </CardHeader>
@@ -78,7 +78,7 @@ export function RouteCard({ household, hamletName, villageName, assignment, well
         )}
       </CardContent>
       <CardFooter className="puteal-noprint">
-        <Button variant="outline" size="sm" onClick={() => window.print()} disabled={!well}>
+        <Button variant="outline" size="sm" className="min-h-11" onClick={() => window.print()} disabled={!well}>
           <Printer /> Print card
         </Button>
       </CardFooter>

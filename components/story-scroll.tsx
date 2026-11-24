@@ -111,15 +111,16 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
           <div className="relative h-0.5 w-full bg-border" aria-hidden="true">
             <motion.div className="absolute inset-0 origin-left bg-primary" style={{ scaleX: scrollYProgress }} />
           </div>
-          <ol className="mt-2 flex flex-wrap gap-1">
+          {/* One row that scrolls sideways on narrow screens, so 44px targets do not stack. */}
+          <ol className="mt-2 flex gap-1 overflow-x-auto">
             {CHAPTERS.map((c, i) => (
-              <li key={c.id}>
+              <li key={c.id} className="shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => jump(i)}
                   aria-current={active === i ? "step" : undefined}
-                  className={cn("h-7 px-2", active === i && "bg-secondary text-foreground shadow-[inset_0_-2px_0_0_var(--primary)]")}
+                  className={cn("min-h-11 px-2", active === i && "bg-secondary text-foreground shadow-[inset_0_-2px_0_0_var(--primary)]")}
                 >
                   {c.label}
                 </Button>
@@ -243,13 +244,13 @@ export function StoryScroll({ village, mode }: { village: Village; mode: Adapter
             )}
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button variant="outline" size="sm" disabled={!mine.length} onClick={() => setMine((m) => m.slice(0, -1))}>
+            <Button variant="outline" size="sm" className="min-h-11" disabled={!mine.length} onClick={() => setMine((m) => m.slice(0, -1))}>
               Undo last well
             </Button>
-            <Button variant="outline" size="sm" disabled={!mine.length} onClick={() => setMine([])}>
+            <Button variant="outline" size="sm" className="min-h-11" disabled={!mine.length} onClick={() => setMine([])}>
               Clear my wells
             </Button>
-            <Button asChild variant="link" size="sm">
+            <Button asChild variant="link" size="sm" className="min-h-11 whitespace-normal text-left">
               <Link href="/play">Open the full planner, with real OSM buildings</Link>
             </Button>
           </div>

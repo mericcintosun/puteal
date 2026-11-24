@@ -14,9 +14,12 @@ export default function NotFound() {
       <p className="mt-4 leading-relaxed text-muted-foreground">
         This page does not exist. The village story, the planner and the method notes are all one click away.
       </p>
-      <div className="mt-6">
-        <Button asChild variant="outline">
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Button asChild variant="outline" className="min-h-11">
           <Link href="/">Back to the story</Link>
+        </Button>
+        <Button asChild variant="ghost" className="min-h-11">
+          <Link href="/play">Open the planner</Link>
         </Button>
       </div>
     </div>

@@ -93,19 +93,27 @@ export function WellsImport({
       </p>
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="sr-only" onChange={onFile} tabIndex={-1} aria-hidden="true" />
       <div className="grid grid-cols-2 gap-1.5">
-        <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+        <Button variant="outline" size="sm" className="min-h-11 whitespace-normal" onClick={() => fileRef.current?.click()} disabled={busy}>
           <FileUp /> Import CSV
         </Button>
-        <Button variant="ghost" size="sm" onClick={loadExample} disabled={busy}>
+        <Button variant="ghost" size="sm" className="min-h-11 whitespace-normal" onClick={loadExample} disabled={busy}>
           Use the example file
         </Button>
       </div>
 
       {busy && <ListSkeleton rows={3} label="Reading the wells file" />}
 
+      {status.kind === "idle" && !importedFrom && (
+        <p className="text-xs text-muted-foreground">
+          No file yet. Choose one, or press &quot;Use the example file&quot;: the wells land on the map and any row that fails a
+          check is listed here by line.
+        </p>
+      )}
+
       {status.kind === "done" && (
-        <p className="text-xs text-ok">
-          {status.count} wells from {status.file} are on the map{status.rejected.length ? `, ${status.rejected.length} rows skipped` : ""}.
+        <p className="break-words text-xs text-ok" title={status.file}>
+          {status.count} wells from {status.file} are on the map
+          {status.rejected.length ? `, ${status.rejected.length} rows skipped` : ", every row passed its checks"}.
         </p>
       )}
 
@@ -117,9 +125,9 @@ export function WellsImport({
           onRetry={() => fileRef.current?.click()}
         >
           {rejected.length > 1 && (
-            <ul className="mt-1 w-full space-y-0.5 text-xs text-muted-foreground">
+            <ul className="mt-1 max-h-40 w-full space-y-0.5 overflow-y-auto break-words text-xs text-muted-foreground">
               {rejected.slice(1, 6).map((r) => (
-                <li key={r.line}>
+                <li key={r.line} title={`Line ${r.line}: ${r.reason}`}>
                   Line {r.line}: {r.reason}
                 </li>
               ))}
@@ -130,11 +138,11 @@ export function WellsImport({
       )}
 
       <div className="flex flex-wrap gap-1.5">
-        <Button variant="outline" size="sm" className="flex-1" onClick={download} disabled={busy}>
+        <Button variant="outline" size="sm" className="min-h-11 flex-1" onClick={download} disabled={busy}>
           <Download /> Export assignments (CSV)
         </Button>
         {importedFrom && (
-          <Button variant="ghost" size="sm" onClick={clear} disabled={busy}>
+          <Button variant="ghost" size="sm" className="min-h-11" onClick={clear} disabled={busy}>
             <RotateCcw /> Sample wells
           </Button>
         )}

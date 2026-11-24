@@ -188,7 +188,7 @@ export default async function NotesPage() {
 
       <section className="mt-12">
         <h2 className="text-2xl font-semibold">Sources</h2>
-        <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+        <ul className="mt-4 space-y-2 break-words text-sm text-muted-foreground">
           <li>
             KeebsforWater, on arsenic in Bangladesh&apos;s tubewells:{" "}
             <a className="text-primary underline underline-offset-4" href="https://keebsforwater.org/">
@@ -217,7 +217,10 @@ export default async function NotesPage() {
               sdgs.un.org/goals/goal6
             </a>
           </li>
-          <li>Map data and buildings © OpenStreetMap contributors, via the Overpass API.</li>
+          <li>
+            Map data from OpenStreetMap contributors (© OpenStreetMap contributors, ODbL): the map tiles, and the buildings and paths
+            fetched through the Overpass API.
+          </li>
         </ul>
         <p className="mt-8 text-sm">
           <Link href="/play" className="text-primary underline decoration-primary/50 underline-offset-4 hover:decoration-primary">
