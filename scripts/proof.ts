@@ -1,7 +1,8 @@
 // npm run proof: four proofs, one summary line each on stdout, written between
 // <!-- PROOF:BEGIN name --> and <!-- PROOF:END name --> markers in README.md and DEMO.md.
 //   planner-roundtrip: the example wells CSV through the planner's parser and the engine
-//   overpass: one real Overpass call with CONFIG and the shared query builder; on success it
+//   overpass: one real OpenStreetMap read (every Overpass mirror and the OSM main API raced,
+//             lib/adapter.real.ts fetchOsmLayout) with the shared box; on success it
 //             also saves fixtures/osm-charpara.json, the snapshot the real adapter falls back to
 //   engine:   solves the OSM layout (live, else the snapshot) at 10 µg/L with and without the
 //             proposed deep well; with no OSM layout it reports the sample village solve and
@@ -12,7 +13,7 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { fetchOverpassElements, osmPlan } from "../lib/adapter.real";
+import { fetchOsmLayout, osmPlan } from "../lib/adapter.real";
 import { CONFIG } from "../lib/config";
 import { PROPOSED_DEEP_WELL, SAMPLE_VILLAGE, THRESHOLDS } from "../lib/data/seed";
 import { prepareVillage, solve } from "../lib/engine";
@@ -67,10 +68,11 @@ async function proveOverpass(): Promise<Layout | null> {
   try {
     // The build machine has time to spare: a longer per-try timeout than a page request gets
     // (the query itself allows Overpass 25 s), and a budget that stays under the 110 s guard.
-    fetched = await fetchOverpassElements(plan.query, { timeoutMs: 30_000, budgetMs: 80_000 });
+    // Every Overpass mirror and the OSM main API run at once; the first usable answer wins.
+    fetched = await fetchOsmLayout({ timeoutMs: 30_000, budgetMs: 80_000 });
   } catch (e) {
     const tried = e instanceof Error && e.message !== codeOf(e) ? `: ${e.message}` : "";
-    const line = `Not run in this build: no Overpass instance answered (${codeOf(e)}${tried}).`;
+    const line = `Not run in this build: no OpenStreetMap source answered, neither an Overpass instance nor the OSM API (${codeOf(e)}${tried}).`;
     console.log(`proof overpass: ${line}`);
     await writeBlock("README.md", "overpass", line);
     return null;
@@ -82,7 +84,7 @@ async function proveOverpass(): Promise<Layout | null> {
   try {
     village = parseOsmElements(elements, SAMPLE_VILLAGE, plan.parse);
   } catch (e) {
-    const line = `Run on ${today}: Overpass (${host}) answered in ${ms} ms, but the layout could not be used (${codeOf(e)}), so no snapshot was saved.`;
+    const line = `Run on ${today}: OpenStreetMap (${host}) answered in ${ms} ms, but the layout could not be used (${codeOf(e)}), so no snapshot was saved.`;
     console.log(`proof overpass: ${line}`);
     await writeBlock("README.md", "overpass", line);
     return null;
@@ -99,7 +101,7 @@ async function proveOverpass(): Promise<Layout | null> {
     saved = " The snapshot could not be saved.";
   }
   const line =
-    `Run on ${today}: Overpass (${host}) answered in ${ms} ms with ${village.households.length} buildings kept ` +
+    `Run on ${today}: OpenStreetMap (${host}) answered in ${ms} ms with ${village.households.length} buildings kept ` +
     `(nearest ${CONFIG.maxBuildings} at most) and ${village.paths.length} walkable ways in a ${CONFIG.halfSizeM * 2} m square ` +
     `around the sample village centre.${saved}`;
   console.log(`proof overpass: ${line}`);
@@ -138,7 +140,7 @@ async function proveEngine(layout: Layout | null): Promise<void> {
     const line =
       `Run on ${today} on the sample village Charpara (${SAMPLE_VILLAGE.households.length} households, ${sample.people} people, ` +
       `sample wells), solved in ${sample.ms} ms: ${sampleSentence.replace(/^On the sample village Charpara, /, "")} ` +
-      `The OpenStreetMap layout was not available in this build (no Overpass answer and no saved snapshot), so that figure was not computed.`;
+      `The OpenStreetMap layout was not available in this build (no OpenStreetMap source answered and no saved snapshot), so that figure was not computed.`;
     console.log(`proof engine: ${line}`);
     await writeBlock("README.md", "engine", line);
     await writeBlock("DEMO.md", "demo-closing", `${sampleSentence} The OpenStreetMap figure was not run in this build: no OSM layout available.`);

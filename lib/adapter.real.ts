@@ -16,7 +16,7 @@ import { CONFIG } from "./config";
 import { SAMPLE_VILLAGE } from "./data/seed";
 import { prepareVillage, solve, type Prepared } from "./engine";
 import { PutealError, codeOf } from "./errors";
-import { bboxAround, buildOsmQuery, parseOsmElements } from "./osm";
+import { bboxAround, buildOsmQuery, elementsFromOsmApi, osmApiMapUrl, parseOsmElements } from "./osm";
 import { overpassResponseSchema, type OverpassElement } from "./schemas";
 import type { LayoutTier, PutealAdapter, Village } from "./types";
 
@@ -95,6 +95,8 @@ export interface OverpassOptions {
   timeoutMs?: number;
   /** Total time for every attempt; defaults to CONFIG.overpassBudgetMs. */
   budgetMs?: number;
+  /** Aborts every attempt, used when another source has already answered. */
+  signal?: AbortSignal;
 }
 
 /** HTTP status inside a PutealError detail ("status 406"), or null for timeouts and network failures. */
@@ -121,6 +123,8 @@ export async function fetchOverpassElements(
   const started = Date.now();
   const left = () => budgetMs - (Date.now() - started);
   const winner = new AbortController();
+  if (opts.signal?.aborted) winner.abort();
+  opts.signal?.addEventListener("abort", () => winner.abort(), { once: true });
   const tried: string[] = [];
   let lastCode: ReturnType<typeof codeOf> = "upstream_error";
 
@@ -167,7 +171,105 @@ export async function fetchOverpassElements(
 /** The box, query and parse options every caller shares. */
 export function osmPlan() {
   const box = bboxAround(SAMPLE_VILLAGE, CONFIG.halfSizeM);
-  return { box, query: buildOsmQuery(box), parse: { center: box.center, maxBuildings: CONFIG.maxBuildings } };
+  const apiBox = bboxAround(SAMPLE_VILLAGE, CONFIG.osmApiHalfSizeM);
+  return {
+    box,
+    query: buildOsmQuery(box),
+    apiUrl: CONFIG.osmApiUrl ? osmApiMapUrl(CONFIG.osmApiUrl, apiBox) : null,
+    parse: { center: box.center, maxBuildings: CONFIG.maxBuildings },
+  };
+}
+
+/**
+ * The same buildings and walkable ways from the OSM main API (`GET /api/0.6/map.json`), with
+ * one retry after backoff on a 429, a 5xx, a timeout or a network failure. A 400 or 509 means
+ * the box holds too many nodes or the caller is over its bandwidth share: final.
+ */
+export async function fetchOsmApiElements(
+  opts: OverpassOptions = {},
+): Promise<{ elements: OverpassElement[]; ms: number; host: string }> {
+  const url = osmPlan().apiUrl;
+  if (!url) throw new PutealError("not_configured", "osm api: off");
+  const host = new URL(url).host;
+  const timeoutMs = opts.timeoutMs ?? CONFIG.overpassTimeoutMs;
+  const budgetMs = opts.budgetMs ?? CONFIG.overpassBudgetMs;
+  const started = Date.now();
+  const left = () => budgetMs - (Date.now() - started);
+  const tried: string[] = [];
+  let lastCode: ReturnType<typeof codeOf> = "upstream_error";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    if (left() < 1000 || opts.signal?.aborted) break;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), Math.min(timeoutMs, left()));
+    const onOuter = () => ctrl.abort();
+    opts.signal?.addEventListener("abort", onOuter);
+    log(`osm api requested host=${host} attempt=${attempt}`);
+    let status: number | null = null;
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "application/json", "User-Agent": CONFIG.userAgent },
+        signal: ctrl.signal,
+      });
+      status = res.status;
+      if (!res.ok) throw new PutealError("upstream_error", `status ${res.status}`);
+      let json: unknown;
+      try {
+        json = await res.json();
+      } catch {
+        if (ctrl.signal.aborted) throw new PutealError("upstream_timeout");
+        throw new PutealError("parse_failure", "body is not JSON");
+      }
+      const elements = elementsFromOsmApi(json);
+      return { elements, ms: Date.now() - started, host };
+    } catch (e) {
+      const err =
+        e instanceof PutealError
+          ? e
+          : ctrl.signal.aborted
+            ? new PutealError("upstream_timeout")
+            : new PutealError("upstream_error", "network");
+      lastCode = err.code;
+      const detail = err.message !== err.code ? `${err.code}, ${err.message}` : err.code;
+      tried.push(`${host} GET: ${detail}`);
+      warn(`osm api failed host=${host} attempt=${attempt} ${detail}`);
+      const retryable = err.code !== "parse_failure" && (status === null || status === 429 || status >= 500) && status !== 509;
+      if (!retryable || left() < 3000) break;
+      await sleep(Math.min(CONFIG.overpassBackoffMs * (status === 429 ? 3 : 1), left() / 4));
+    } finally {
+      clearTimeout(timer);
+      opts.signal?.removeEventListener("abort", onOuter);
+    }
+  }
+  throw new PutealError(lastCode, tried.length > 0 ? tried.join("; ") : `${host}: budget spent`);
+}
+
+/**
+ * The live OSM layout from whichever source answers first: every Overpass mirror and the OSM
+ * main API run at once, and the first answer with enough buildings wins (the others are
+ * aborted). The thrown error lists every attempt of every source.
+ */
+export async function fetchOsmLayout(
+  opts: Omit<OverpassOptions, "signal"> = {},
+): Promise<{ elements: OverpassElement[]; ms: number; host: string }> {
+  const winner = new AbortController();
+  const plan = osmPlan();
+  const usable = async (p: Promise<{ elements: OverpassElement[]; ms: number; host: string }>) => {
+    const r = await p;
+    // Fewer than 5 buildings makes the parser refuse; let the other source win instead.
+    parseOsmElements(r.elements, SAMPLE_VILLAGE, plan.parse);
+    return r;
+  };
+  const sources = [usable(fetchOverpassElements(plan.query, { ...opts, signal: winner.signal }))];
+  if (plan.apiUrl) sources.push(usable(fetchOsmApiElements({ ...opts, signal: winner.signal })));
+  try {
+    const r = await Promise.any(sources);
+    winner.abort();
+    return r;
+  } catch (e) {
+    const errors = e instanceof AggregateError ? e.errors : [e];
+    const first = errors.find((x) => x instanceof PutealError) as PutealError | undefined;
+    throw new PutealError(first?.code ?? "upstream_error", errors.map((x) => (x instanceof Error ? x.message : String(x))).join("; "));
+  }
 }
 
 function villageFrom(elements: OverpassElement[], tier: LayoutTier): Village {
@@ -176,9 +278,9 @@ function villageFrom(elements: OverpassElement[], tier: LayoutTier): Village {
 }
 
 async function liveVillage(): Promise<Village> {
-  const { elements, ms } = await fetchOverpassElements(osmPlan().query);
+  const { elements, ms, host } = await fetchOsmLayout();
   const v = villageFrom(elements, "live");
-  log(`overpass ok buildings=${v.households.length} ways=${v.paths.length} ms=${ms}`);
+  log(`osm layout ok host=${host} buildings=${v.households.length} ways=${v.paths.length} ms=${ms}`);
   return v;
 }
 

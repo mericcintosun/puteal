@@ -33,6 +33,23 @@ export const CONFIG = {
   overpassBackoffMs: 700,
   /** Overpass asks clients to identify themselves; anonymous runtime user agents are throttled first. */
   userAgent: "Puteal/0.1 (+https://puteal.vercel.app; SDG 6.1 well planner)",
+  /**
+   * The OpenStreetMap main API (v0.6 `map.json`), a second keyless source on different
+   * servers from every Overpass mirror. It is raced alongside Overpass, so a layout still
+   * loads when all Overpass instances are overloaded or refuse the caller.
+   * OSM_API_URL replaces the base URL; set it to "off" to skip this source.
+   */
+  osmApiUrl: (() => {
+    const raw = (process.env.OSM_API_URL ?? "").trim();
+    if (raw === "off") return null;
+    return /^https?:\/\//.test(raw) ? raw.replace(/\/+$/, "") : "https://api.openstreetmap.org";
+  })(),
+  /**
+   * Half side of the box asked from the OSM API. Smaller than halfSizeM because `map`
+   * answers with every node in the box (limit 50,000) and the parser keeps only the
+   * nearest maxBuildings anyway.
+   */
+  osmApiHalfSizeM: 450,
   /** Half the side of the square box (in meters) fetched around the sample village centre. */
   halfSizeM: 650,
   /** Buildings kept, nearest to the centre first, so the browser solve stays quick. */

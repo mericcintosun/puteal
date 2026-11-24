@@ -37,6 +37,56 @@ export function buildOsmQuery(box: OsmBox, walkable: string = CONFIG.walkableHig
   return `[out:json][timeout:25];(way["building"](${bbox});way["highway"~"^(${walkable})$"](${bbox}););out geom;`;
 }
 
+/** OSM API v0.6 `map.json` URL for the box; the API's bbox order is west, south, east, north. */
+export function osmApiMapUrl(base: string, box: OsmBox): string {
+  const bbox = [box.west, box.south, box.east, box.north].map((n) => n.toFixed(5)).join(",");
+  return `${base}/api/0.6/map.json?bbox=${bbox}`;
+}
+
+interface OsmApiNode {
+  type: "node";
+  id: number;
+  lat: number;
+  lon: number;
+}
+
+interface OsmApiWay {
+  type: "way";
+  id: number;
+  nodes: number[];
+  tags?: Record<string, string>;
+}
+
+/**
+ * Turns an OSM API `map.json` answer into the same elements the Overpass query returns:
+ * buildings and walkable ways, each with its geometry resolved from the node list. The API
+ * includes every node a returned way references, so geometry is complete even across the box
+ * edge. Throws parse_failure when the body is not a `map.json` answer.
+ */
+export function elementsFromOsmApi(json: unknown, walkable: string = CONFIG.walkableHighways): OverpassElement[] {
+  const list = (json as { elements?: unknown })?.elements;
+  if (!Array.isArray(list)) throw new PutealError("parse_failure", "map.json without elements");
+  const nodes = new Map<number, { lat: number; lon: number }>();
+  const ways: OsmApiWay[] = [];
+  for (const el of list as Array<Partial<Omit<OsmApiNode, "type"> & Omit<OsmApiWay, "type">> & { type?: string }>) {
+    if (el.type === "node" && typeof el.id === "number" && Number.isFinite(el.lat) && Number.isFinite(el.lon)) {
+      nodes.set(el.id, { lat: el.lat as number, lon: el.lon as number });
+    } else if (el.type === "way" && typeof el.id === "number" && Array.isArray(el.nodes)) {
+      ways.push(el as OsmApiWay);
+    }
+  }
+  const walk = new RegExp(`^(${walkable})$`);
+  const out: OverpassElement[] = [];
+  for (const w of ways) {
+    const tags = w.tags ?? {};
+    if (!tags.building && !(tags.highway && walk.test(tags.highway))) continue;
+    const geometry = w.nodes.map((id) => nodes.get(id)).filter((g): g is { lat: number; lon: number } => g !== undefined);
+    if (geometry.length === 0) continue;
+    out.push({ type: "way", id: w.id, tags, geometry });
+  }
+  return out;
+}
+
 export interface ParseOptions {
   /** Centre of the fetched box; buildings nearest to it are kept first. */
   center: LatLon;

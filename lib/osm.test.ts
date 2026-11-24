@@ -3,7 +3,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { SAMPLE_VILLAGE } from "./data/seed";
 import { PutealError } from "./errors";
-import { bboxAround, buildOsmQuery, parseOsmElements } from "./osm";
+import { bboxAround, buildOsmQuery, elementsFromOsmApi, osmApiMapUrl, parseOsmElements } from "./osm";
 import { overpassResponseSchema } from "./schemas";
 
 const raw = JSON.parse(readFileSync(path.join(process.cwd(), "fixtures", "osm-mini.json"), "utf8"));
@@ -50,5 +50,35 @@ describe("parseOsmElements over fixtures/osm-mini.json", () => {
     expect(q).toContain('way["building"]');
     expect(q).toContain("footway");
     expect(q).toContain("out geom");
+  });
+});
+
+describe("elementsFromOsmApi", () => {
+  it("resolves way geometry from nodes and keeps only buildings and walkable ways", () => {
+    const json = {
+      elements: [
+        { type: "node", id: 1, lat: 23.7, lon: 90.6 },
+        { type: "node", id: 2, lat: 23.7001, lon: 90.6 },
+        { type: "node", id: 3, lat: 23.7001, lon: 90.6001 },
+        { type: "way", id: 10, nodes: [1, 2, 3, 1], tags: { building: "yes" } },
+        { type: "way", id: 11, nodes: [1, 3], tags: { highway: "footway", name: "Mondal lane" } },
+        { type: "way", id: 12, nodes: [1, 2], tags: { highway: "motorway" } },
+        { type: "way", id: 13, nodes: [2, 3], tags: { waterway: "canal" } },
+      ],
+    };
+    const out = elementsFromOsmApi(json);
+    expect(out.map((e) => e.id)).toEqual([10, 11]);
+    expect(out[0].geometry).toHaveLength(4);
+    expect(out[1].geometry?.[1]).toEqual({ lat: 23.7001, lon: 90.6001 });
+  });
+
+  it("throws parse_failure on a body without elements", () => {
+    expect(() => elementsFromOsmApi({ error: "x" })).toThrow(PutealError);
+  });
+
+  it("puts the API bbox in west, south, east, north order", () => {
+    expect(osmApiMapUrl("https://api.openstreetmap.org", box)).toBe(
+      `https://api.openstreetmap.org/api/0.6/map.json?bbox=${[box.west, box.south, box.east, box.north].map((n) => n.toFixed(5)).join(",")}`,
+    );
   });
 });
