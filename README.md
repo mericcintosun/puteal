@@ -66,11 +66,11 @@ The real adapter answers from the first source that works: the server's own copy
 Last proof of the live path:
 
 <!-- PROOF:BEGIN overpass -->
-Not run in this build: no OpenStreetMap source returned a usable layout (at least 30 buildings, 50% of them within 500 m of a sample well), neither an Overpass instance nor the OSM API (upstream_timeout: maps.mail.ru POST: upstream_error, status 504; maps.mail.ru POST: upstream_error, status 504; overpass-api.de POST: upstream_error, network; overpass-api.de POST: upstream_error, network; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; overpass.private.coffee POST: upstream_timeout; overpass.kumi.systems POST: upstream_timeout; layout too sparse: 16 buildings, 0 within 500 m of a sample well (needs 30 buildings, 50% near)). No snapshot was saved; the pages show the sample village and say why.
+Not run in this build: no OpenStreetMap source returned a usable layout (at least 30 buildings, 50% of them within 500 m of a sample well). OpenStreetMap answered, but the map is thin around the sample wells (only 0 buildings mapped; layout too sparse: 16 buildings, 0 within 500 m of a sample well (needs 30 buildings, 50% near)). No snapshot was saved; the pages show the sample village and say why.
 <!-- PROOF:END overpass -->
 
 <!-- PROOF:BEGIN engine -->
-Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 17 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). No usable OpenStreetMap layout was available in this build (no source returned enough mapped buildings near the sample wells, and no usable saved snapshot), so that figure was not computed.
+Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 11 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). No usable OpenStreetMap layout was available in this build (no source returned enough mapped buildings near the sample wells, and no usable saved snapshot), so that figure was not computed.
 <!-- PROOF:END engine -->
 
 ## Quickstart
