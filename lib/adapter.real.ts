@@ -221,7 +221,13 @@ export async function fetchOsmApiElements(
       break;
     }
   }
-  if (best) return best;
+  if (best && buildingCount(best.elements) >= 5) return best;
+  // Every box answered thin, or a wider box failed after a thin one. Say which, box by box,
+  // so the proof line shows whether the map is empty there or the widening was cut short.
+  // "buildings mapped" keeps isSparse() true: OpenStreetMap did answer.
+  if (best) {
+    throw new PutealError("parse_failure", `osm api: only ${buildingCount(best.elements)} buildings mapped (${notes.join("; ")})`);
+  }
   throw new PutealError("upstream_error", notes.join("; ") || "osm api: budget spent");
 }
 
