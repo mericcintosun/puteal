@@ -70,7 +70,7 @@ Not run in this build: no OpenStreetMap source returned a usable layout (at leas
 <!-- PROOF:END overpass -->
 
 <!-- PROOF:BEGIN engine -->
-Run on 2026-11-24 on the sample village Charpara (100 households, 420 people, sample wells), solved in 11 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). No usable OpenStreetMap layout was available in this build (no source returned enough mapped buildings near the sample wells, and no usable saved snapshot), so that figure was not computed.
+Run on 2026-11-25 on the sample village Charpara (100 households, 420 people, sample wells), solved in 40 ms: one deep well by Char para brings 67 people back within 500 m of safe water (126 to 59 far at 10 µg/L). No usable OpenStreetMap layout was available in this build (no source returned enough mapped buildings near the sample wells, and no usable saved snapshot), so that figure was not computed.
 <!-- PROOF:END engine -->
 
 ## Quickstart
@@ -87,7 +87,7 @@ No environment variables are required. `.env.example` lists the optional `ADAPTE
 Last proof of the planner round trip (the example wells CSV through the planner's parser and the engine):
 
 <!-- PROOF:BEGIN planner-roundtrip -->
-Run on 2026-11-24: fixtures/wells-example.csv gives 12 valid wells and 1 rejected row. On the sample village at 10 µg/L with those wells, 67 people live more than 500 m from their assigned safe well (126 with the sample wells).
+Run on 2026-11-25: fixtures/wells-example.csv gives 12 valid wells and 1 rejected row. On the sample village at 10 µg/L with those wells, 67 people live more than 500 m from their assigned safe well (126 with the sample wells).
 <!-- PROOF:END planner-roundtrip -->
 
 ## Addresses
