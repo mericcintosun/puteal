@@ -520,3 +520,23 @@ Marka rerun needed: raster files not uploaded yet.
 - Stale production alias: same evidence as round 5 (strings absent from source, old "Overpass API" copy in the screenshot). Needs a human in the Vercel dashboard.
 - Overpass mirrors from the proof runner: `POST https://maps.mail.ru/osm/tools/overpass/api/interpreter` returned a non-2xx (`upstream_error`), and the race as a whole ended in `upstream_timeout`. That's public mirror load, not fixable here.
 - OpenStreetMap coverage around 23.7815 N, 90.6395 E stays too thin for a usable layout (round 5). The way forward is mapping the area or a deliberate move of `SAMPLE_VILLAGE.origin`.
+
+## QA round 7 (live crawl of https://puteal.vercel.app)
+
+**Findings.** Five `data` findings: the source line "OpenStreetMap maps only a few buildings around these wells so far, so this is the sample village. Well test values are sample data." on `/` and `/play`, and the footer "Built for SDG 6.1; well test values are sample data, map data from OpenStreetMap contributors." on `/`, `/play` and `/notes`. One `proof` finding: `overpass` "OpenStreetMap answered, but the map is thin around the sample wells (only 0 buildings mapped; ...".
+
+**Progress since round 6.** The crawl quotes the current strings, so the production alias now serves current deployments. The stale-alias finding from rounds 3 to 6 is closed.
+
+**Root cause (external, unchanged): OpenStreetMap barely maps buildings around the sample centre** (23.7815 N, 90.6395 E, Araihazar). The OSM main API answers, but with too few buildings, so no layout passes `assertLayoutFits` and every page shows the sample village. The source line says that in one muted sentence, which is true.
+
+**Fixes in this repo.**
+- `lib/adapter.real.ts` (`fetchOsmApiElements`): when the widening ended with fewer than 5 buildings, it returned the thin box and dropped its notes. The parser then threw a bare "only 0 buildings mapped". That hid whether the 2.4 km and 5 km boxes were empty or were never read (round 5 saw 16 buildings in the 5 km box, this round reports 0, so one of the wider boxes most likely failed). It now throws `parse_failure` "osm api: only N buildings mapped (<each box and its count or failure>)", so the next proof line says which. `isSparse` still matches, so the calm "sparse" line still applies.
+- `app/layout.tsx`: the footer is now attribution only ("Built for SDG 6.1, safe drinking water for all. Map data from OpenStreetMap contributors."). Every page already says in context that the wells are sample data: the standfirst and the source line on `/`, the intro and the source line on `/play`, and "What is real and what is sample" on `/notes`. The footer repeated that on every page.
+- `lib/source-line.ts`: the sparse line now gives the reason too: "...Well test values are sample data, since no public per-well test results exist for this place."
+
+**What stays on purpose.** The sample-data sentences on each page. The wells really are sample data, and the layout really is the sample village while OSM is thin there.
+
+### QA: external findings (round 7)
+
+- OpenStreetMap coverage: `GET https://api.openstreetmap.org/api/0.6/map.json?bbox=<900 m box around 23.7869 N, 90.6469 E>` returned 200 with 0 buildings. This session had no network access (shell and fetch both blocked), so a better-mapped origin could not be checked. Moving `SAMPLE_VILLAGE.origin` without checking it would be a guess. There are two real fixes. (1) Map the Araihazar area on OpenStreetMap (a HOT Tasking Manager task). (2) From a machine with network, count buildings at candidate village centres (`map.json?bbox=...`, at least 30 buildings in a 1.5 x 1.2 km box), then move `SAMPLE_VILLAGE.origin` in `lib/data/seed.ts` and regenerate the absolute coordinates in `lib/wells-example.ts`, `fixtures/wells-example.csv`, `fixtures/osm-mini.json` and `lib/wells-csv.test.ts`. Then run `npm run proof` to save `fixtures/osm-charpara.json`.
+- Overpass mirrors: same public-mirror load as rounds 3 to 6.
