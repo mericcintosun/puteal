@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main>{children}</main>
         <footer className="puteal-noprint mt-8 border-t border-border">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-            <p className="max-w-prose">Built for SDG 6.1; well test values are sample data, map data from OpenStreetMap contributors.</p>
+            <p className="max-w-prose">Built for SDG 6.1, safe drinking water for all. Map data from OpenStreetMap contributors.</p>
             <ul className="flex flex-wrap gap-x-5">
               <li>
                 <a
